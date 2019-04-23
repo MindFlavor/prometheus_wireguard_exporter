@@ -1,0 +1,4 @@
+[
+  { "path": "/home/mindflavor", "recursive": true },
+  { "path": "/home/mindflavor/.cargo", "recursive": false }
+]

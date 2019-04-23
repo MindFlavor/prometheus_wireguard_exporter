@@ -1,0 +1,28 @@
+[package]
+name           = "prometheus_wireguard_exporter"
+version        = "0.1.0"
+authors        = ["Francesco Cogno <francesco.cogno@outlook.com>"]
+description    = "Prometheus WireGuard Exporter"
+edition        = "2018"
+
+readme         = "README.md"
+license        = "MIT"
+repository     = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
+documentation  = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
+homepage       = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
+
+keywords       = ["prometheus", "exporter", "wireguard"]
+categories     = ["database"]
+
+
+[dependencies]
+log            = "0.4.6"
+env_logger     = "0.6.1"
+futures        = "0.1.26"
+clap           = "2.33.0"
+serde_json     = "1.0.39"
+serde          = "1.0.90"
+serde_derive   = "1.0.90"
+failure        = "0.1.5"
+hyper          = "0.12.27"
+http           = "0.1.17"
