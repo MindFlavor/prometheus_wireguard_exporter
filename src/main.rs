@@ -20,6 +20,7 @@ use std::convert::TryFrom;
 use std::process::Command;
 use std::string::String;
 use wireguard::WireGuard;
+mod wireguard_config;
 
 fn check_compliance(req: &Request<Body>) -> Result<(), Response<Body>> {
     if req.uri() != "/metrics" {
