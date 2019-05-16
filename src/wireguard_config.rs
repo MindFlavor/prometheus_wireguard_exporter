@@ -1,34 +1,88 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct PeerEntry {
-    pub public_key: String,
-    pub name: Option<String>,
+pub(crate) struct PeerEntry<'a> {
+    pub public_key: &'a str,
+    pub allowed_ips: &'a str,
+    pub name: Option<&'a str>,
 }
 
-pub(crate) fn parse<'a>(txt: &'a str) -> HashMap<String, PeerEntry> {
+#[inline]
+fn after_equals(s: &str) -> &str {
+    let mut p: usize = 0;
+    for c in s.chars().into_iter() {
+        if c == '=' {
+            return &s[p + 1..];
+        } else {
+            p += c.len_utf8();
+        }
+    }
+    s
+}
+
+fn parse_peer_entry<'a>(lines: &[&'a str]) -> PeerEntry<'a> {
+    let mut public_key = "";
+    let mut allowed_ips = "";
+    let mut name = None;
+
+    for line in lines {
+        if line.starts_with("PublicKey") {
+            public_key = after_equals(line).trim();
+        } else if line.starts_with("AllowedIPs") {
+            allowed_ips = after_equals(line).trim();
+        } else if line.starts_with("#") {
+            name = Some(line[1..].trim());
+        }
+    }
+
+    PeerEntry {
+        public_key,
+        allowed_ips,
+        name,
+    }
+}
+
+pub(crate) fn parse<'a>(txt: &'a str) -> HashMap<&'a str, PeerEntry<'a>> {
     let mut ht = HashMap::new();
 
-    let mut name = "";
-    txt.lines().fold("", |prev, cur| {
-        if cur == "[Peer]" {
-            if prev.chars().next() == Some('#') {
-                name = prev;
-            }
-        } else if cur.starts_with("PublicKey") {
-            // public key found, use it as key
-            // TODO we must strip the PublicKey = first !
-            ht.insert(
-                cur.to_owned(),
-                PeerEntry {
-                    public_key: cur.to_owned(),
-                    name: Some(name.to_owned()),
-                },
-            );
-        }
+    let mut v_blocks = Vec::new();
+    let mut cur_block: Option<Vec<&str>> = None;
 
-        cur
-    });
+    for line in txt.lines().into_iter() {
+        if line.starts_with("[") {
+            if let Some(inner_cur_block) = cur_block {
+                // close the block
+                v_blocks.push(inner_cur_block);
+                cur_block = None;
+            }
+
+            if line == "[Peer]" {
+                // start a new block
+                cur_block = Some(Vec::new());
+            }
+        } else {
+            // push the line if we are in a block (only if not empty)
+            if let Some(inner_cur_block) = &mut cur_block {
+                if line != "" {
+                    inner_cur_block.push(line);
+                }
+            }
+        }
+    }
+
+    if let Some(cur_block) = cur_block {
+        // we have a leftover block
+        v_blocks.push(cur_block);
+    }
+
+    println!("v_blocks == {:?}", v_blocks);
+
+    for block in &v_blocks {
+        let p = parse_peer_entry(block);
+        ht.insert(p.public_key, p);
+    }
+
+    println!("ht == {:?}", ht);
 
     ht
 }
@@ -43,33 +97,33 @@ PrivateKey = my_super_secret_private_key
 # PreUp = iptables -t nat -A POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
 # PostDown = iptables -t nat -D POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
 
-# OnePlus 6T
 [Peer]
+# OnePlus 6T
 PublicKey = 2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=
 AllowedIPs = 10.70.0.2/32
 
-# varch.local (laptop)
 [Peer]
+# varch.local (laptop)
 PublicKey = qnoxQoQI8KKMupLnSSureORV0wMmH7JryZNsmGVISzU=
 AllowedIPs = 10.70.0.3/32
 
-# cantarch
 [Peer]
+# cantarch
 PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 AllowedIPs = 10.70.0.4/32
 
-# frcognoarch
 [Peer]
+# frcognoarch
 PublicKey = MdVOIPKt9K2MPj/sO2NlWQbOnFJ6L/qX80mmhQwsUlA=
 AllowedIPs = 10.70.0.50/32
 
-# frcognowin10
 [Peer]
+# frcognowin10
 PublicKey = lqYcojJMsIZXMUw1heAFbQHBoKjCEaeo7M1WXDh/KWc=
 AllowedIPs = 10.70.0.40/32
 
-# OnePlus 5T
 [Peer]
+# OnePlus 5T
 PublicKey = 928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=
 AllowedIPs = 10.70.0.80/32
 ";
