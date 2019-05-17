@@ -1,4 +1,13 @@
 #[derive(Debug, Fail)]
+pub(crate) enum PeerEntryParseError {
+    #[fail(display = "PublicKey entry not found in lines: {:?}", lines)]
+    PublicKeyNotFound { lines: Vec<String> },
+
+    #[fail(display = "AllowedIPs entry not found in lines: {:?}", lines)]
+    AllowedIPsEntryNotFound { lines: Vec<String> },
+}
+
+#[derive(Debug, Fail)]
 pub(crate) enum ExporterError {
     #[allow(dead_code)]
     #[fail(display = "Generic error")]
@@ -24,6 +33,15 @@ pub(crate) enum ExporterError {
 
     #[fail(display = "int conversion error: {}", e)]
     ParseInt { e: std::num::ParseIntError },
+
+    #[fail(display = "PeerEntry parse error: {}", e)]
+    PeerEntryParseError { e: PeerEntryParseError },
+}
+
+impl From<PeerEntryParseError> for ExporterError {
+    fn from(e: PeerEntryParseError) -> Self {
+        ExporterError::PeerEntryParseError { e }
+    }
 }
 
 impl From<std::io::Error> for ExporterError {

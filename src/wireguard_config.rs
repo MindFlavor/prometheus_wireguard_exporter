@@ -1,4 +1,6 @@
+use crate::exporter_error::PeerEntryParseError;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct PeerEntry<'a> {
@@ -8,10 +10,10 @@ pub(crate) struct PeerEntry<'a> {
 }
 
 #[inline]
-fn after_equals(s: &str) -> &str {
+fn after_char(s: &str, c_split: char) -> &str {
     let mut p: usize = 0;
     for c in s.chars().into_iter() {
-        if c == '=' {
+        if c == c_split {
             return &s[p + 1..];
         } else {
             p += c.len_utf8();
@@ -20,29 +22,40 @@ fn after_equals(s: &str) -> &str {
     s
 }
 
-fn parse_peer_entry<'a>(lines: &[&'a str]) -> PeerEntry<'a> {
+fn parse_peer_entry<'a>(lines: &[&'a str]) -> Result<PeerEntry<'a>, PeerEntryParseError> {
     let mut public_key = "";
     let mut allowed_ips = "";
     let mut name = None;
 
     for line in lines {
         if line.starts_with("PublicKey") {
-            public_key = after_equals(line).trim();
+            public_key = after_char(line, '=').trim();
         } else if line.starts_with("AllowedIPs") {
-            allowed_ips = after_equals(line).trim();
+            allowed_ips = after_char(line, '=').trim();
         } else if line.starts_with("#") {
             name = Some(line[1..].trim());
         }
     }
 
-    PeerEntry {
-        public_key,
-        allowed_ips,
-        name,
+    // Sanity checks
+    if public_key == "" {
+        let lines_owned: Vec<String> = lines.into_iter().map(|line| line.to_string()).collect();
+        Err(PeerEntryParseError::PublicKeyNotFound { lines: lines_owned })
+    } else if allowed_ips == "" {
+        let lines_owned: Vec<String> = lines.into_iter().map(|line| line.to_string()).collect();
+        Err(PeerEntryParseError::AllowedIPsEntryNotFound { lines: lines_owned })
+    } else {
+        Ok(PeerEntry {
+            public_key,
+            allowed_ips,
+            name, // name can be None
+        })
     }
 }
 
-pub(crate) fn parse<'a>(txt: &'a str) -> HashMap<&'a str, PeerEntry<'a>> {
+pub(crate) fn parse<'a>(
+    txt: &'a str,
+) -> Result<HashMap<&'a str, PeerEntry<'a>>, PeerEntryParseError> {
     let mut ht = HashMap::new();
 
     let mut v_blocks = Vec::new();
@@ -78,13 +91,13 @@ pub(crate) fn parse<'a>(txt: &'a str) -> HashMap<&'a str, PeerEntry<'a>> {
     println!("v_blocks == {:?}", v_blocks);
 
     for block in &v_blocks {
-        let p = parse_peer_entry(block);
+        let p = parse_peer_entry(block)?;
         ht.insert(p.public_key, p);
     }
 
     println!("ht == {:?}", ht);
 
-    ht
+    Ok(ht)
 }
 
 #[cfg(test)]
