@@ -63,9 +63,12 @@ fn handle_request(
 
 fn perform_request(
     _req: Request<Body>,
-    _options: &Options,
+    options: &Options,
 ) -> impl Future<Item = Response<Body>, Error = ExporterError> {
     trace!("perform_request");
+
+    // this is needed to satisfy the borrow checker
+    let options = options.clone();
 
     done(
         Command::new("wg")
@@ -76,14 +79,29 @@ fn perform_request(
     )
     .from_err()
     .and_then(|output| {
-        done(String::from_utf8(output.stdout))
-            .from_err()
-            .and_then(|output_str| {
-                trace!("{}", output_str);
-                done(WireGuard::try_from(&output_str as &str))
+        if let Some(extract_names_config_file) = options.extract_names_config_file {
+            Either::A(
+                done(String::from_utf8(output.stdout))
                     .from_err()
-                    .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
-            })
+                    .and_then(|output_str| {
+                        trace!("{}", output_str);
+                        done(WireGuard::try_from(&output_str as &str))
+                            .from_err()
+                            .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
+                    }),
+            )
+        } else {
+            Either::B(
+                done(String::from_utf8(output.stdout))
+                    .from_err()
+                    .and_then(|output_str| {
+                        trace!("{}", output_str);
+                        done(WireGuard::try_from(&output_str as &str))
+                            .from_err()
+                            .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
+                    }),
+            )
+        }
     })
 }
 
@@ -94,7 +112,7 @@ fn main() {
         .arg(
             Arg::with_name("port")
                 .short("p")
-                .help("exporter port (default 9576)")
+                .help("exporter port")
                 .default_value("9576")
                 .takes_value(true),
         )
@@ -104,6 +122,11 @@ fn main() {
                 .help("verbose logging")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("extract_names_config_file")
+                .short("n")
+                .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
+                .takes_value(true))
         .get_matches();
 
     let options = Options::from_claps(&matches);
