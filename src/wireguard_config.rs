@@ -36,7 +36,7 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
                 public_key = after_char(line, '=').trim();
             } else if line.starts_with("AllowedIPs") {
                 allowed_ips = after_char(line, '=').trim();
-            } else if line.starts_with("#") {
+            } else if line.starts_with('#') {
                 // since the pound sign is 1 byte the below slice will work
                 name = Some(line[1..].trim());
             }
@@ -48,10 +48,10 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
         if public_key == "" {
             // we return a owned String for ergonomics. This will allocate but it's ok since it's not supposed
             // to happen :)
-            let lines_owned: Vec<String> = lines.into_iter().map(|line| line.to_string()).collect();
+            let lines_owned: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
             Err(PeerEntryParseError::PublicKeyNotFound { lines: lines_owned })
         } else if allowed_ips == "" {
-            let lines_owned: Vec<String> = lines.into_iter().map(|line| line.to_string()).collect();
+            let lines_owned: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
             Err(PeerEntryParseError::AllowedIPsEntryNotFound { lines: lines_owned })
         } else {
             Ok(PeerEntry {
@@ -65,8 +65,8 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
 
 pub(crate) type PeerEntryHashMap<'a> = (HashMap<&'a str, PeerEntry<'a>>);
 
-pub(crate) fn peer_entry_hashmap_try_from<'a>(
-    txt: &'a str,
+pub(crate) fn peer_entry_hashmap_try_from(
+    txt: &str,
 ) -> Result<PeerEntryHashMap, PeerEntryParseError> {
     let mut hm = HashMap::new();
 
@@ -74,7 +74,7 @@ pub(crate) fn peer_entry_hashmap_try_from<'a>(
     let mut cur_block: Option<Vec<&str>> = None;
 
     for line in txt.lines().into_iter() {
-        if line.starts_with("[") {
+        if line.starts_with('[') {
             if let Some(inner_cur_block) = cur_block {
                 // close the block
                 v_blocks.push(inner_cur_block);
