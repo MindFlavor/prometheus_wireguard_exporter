@@ -71,7 +71,7 @@ fn wg_with_text(
 
     let wg_output_string = String::from_utf8(wg_output.stdout)?;
     let wg = WireGuard::try_from(&wg_output_string as &str)?;
-    Ok(Response::new(Body::from(wg.render())))
+    Ok(Response::new(Body::from(wg.render_with_names(Some(&pehm)))))
 }
 
 fn perform_request(

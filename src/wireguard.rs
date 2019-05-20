@@ -126,7 +126,7 @@ impl TryFrom<&str> for WireGuard {
 }
 
 impl WireGuard {
-    fn render_with_names(&self, pehm: Option<&PeerEntryHashMap>) -> String {
+    pub(crate) fn render_with_names(&self, pehm: Option<&PeerEntryHashMap>) -> String {
         let mut latest_handshakes = Vec::new();
         let mut sent_bytes = Vec::new();
         let mut received_bytes = Vec::new();
