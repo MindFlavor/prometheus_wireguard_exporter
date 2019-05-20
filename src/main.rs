@@ -20,6 +20,8 @@ use std::convert::TryFrom;
 use std::process::Command;
 use std::string::String;
 use wireguard::WireGuard;
+mod wireguard_config;
+use wireguard_config::peer_entry_hashmap_try_from;
 
 fn check_compliance(req: &Request<Body>) -> Result<(), Response<Body>> {
     if req.uri() != "/metrics" {
@@ -60,11 +62,26 @@ fn handle_request(
     })
 }
 
+fn wg_with_text(
+    wg_config_str: &str,
+    wg_output: ::std::process::Output,
+) -> Result<Response<Body>, ExporterError> {
+    let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
+    trace!("pehm == {:?}", pehm);
+
+    let wg_output_string = String::from_utf8(wg_output.stdout)?;
+    let wg = WireGuard::try_from(&wg_output_string as &str)?;
+    Ok(Response::new(Body::from(wg.render_with_names(Some(&pehm)))))
+}
+
 fn perform_request(
     _req: Request<Body>,
-    _options: &Options,
+    options: &Options,
 ) -> impl Future<Item = Response<Body>, Error = ExporterError> {
     trace!("perform_request");
+
+    // this is needed to satisfy the borrow checker
+    let options = options.clone();
 
     done(
         Command::new("wg")
@@ -75,25 +92,35 @@ fn perform_request(
     )
     .from_err()
     .and_then(|output| {
-        done(String::from_utf8(output.stdout))
-            .from_err()
-            .and_then(|output_str| {
-                trace!("{}", output_str);
-                done(WireGuard::try_from(&output_str as &str))
+        if let Some(extract_names_config_file) = options.extract_names_config_file {
+            Either::A(
+                done(::std::fs::read_to_string(extract_names_config_file))
                     .from_err()
-                    .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
-            })
+                    .and_then(|wg_config_string| wg_with_text(&wg_config_string as &str, output)),
+            )
+        } else {
+            Either::B(
+                done(String::from_utf8(output.stdout))
+                    .from_err()
+                    .and_then(|output_str| {
+                        trace!("{}", output_str);
+                        done(WireGuard::try_from(&output_str as &str))
+                            .from_err()
+                            .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
+                    }),
+            )
+        }
     })
 }
 
 fn main() {
     let matches = clap::App::new("prometheus_wireguard_exporter")
-        .version("0.1")
+        .version("1.2.0")
         .author("Francesco Cogno <francesco.cogno@outlook.com>")
         .arg(
             Arg::with_name("port")
                 .short("p")
-                .help("exporter port (default 9576)")
+                .help("exporter port")
                 .default_value("9576")
                 .takes_value(true),
         )
@@ -103,6 +130,11 @@ fn main() {
                 .help("verbose logging")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("extract_names_config_file")
+                .short("n")
+                .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
+                .takes_value(true))
         .get_matches();
 
     let options = Options::from_claps(&matches);

@@ -1,6 +1,6 @@
 [package]
 name           = "prometheus_wireguard_exporter"
-version        = "0.1.0"
+version        = "1.2.0"
 authors        = ["Francesco Cogno <francesco.cogno@outlook.com>"]
 description    = "Prometheus WireGuard Exporter"
 edition        = "2018"
@@ -18,11 +18,11 @@ categories     = ["database"]
 [dependencies]
 log            = "0.4.6"
 env_logger     = "0.6.1"
-futures        = "0.1.26"
+futures        = "0.1.27"
 clap           = "2.33.0"
 serde_json     = "1.0.39"
-serde          = "1.0.90"
-serde_derive   = "1.0.90"
+serde          = "1.0.91"
+serde_derive   = "1.0.91"
 failure        = "0.1.5"
-hyper          = "0.12.27"
+hyper          = "0.12.29"
 http           = "0.1.17"

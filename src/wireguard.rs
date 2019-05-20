@@ -1,5 +1,6 @@
 use crate::exporter_error::ExporterError;
 use crate::render_to_prometheus::RenderToPrometheus;
+use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -124,20 +125,47 @@ impl TryFrom<&str> for WireGuard {
     }
 }
 
-impl RenderToPrometheus for WireGuard {
-    fn render(&self) -> String {
+impl WireGuard {
+    pub(crate) fn render_with_names(&self, pehm: Option<&PeerEntryHashMap>) -> String {
         let mut latest_handshakes = Vec::new();
         let mut sent_bytes = Vec::new();
         let mut received_bytes = Vec::new();
 
-        for (interface, endpoints) in self.interfaces.iter() {
-            for endpoint in endpoints {
-                // only show remote endpoints
-                if let Endpoint::Remote(ep) = endpoint {
-                    debug!("{:?}", ep);
-                    sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                    received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                    latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+        if let Some(pehm) = pehm {
+            // here we try to add the "friendly" name looking in the hashmap
+            for (interface, endpoints) in self.interfaces.iter() {
+                for endpoint in endpoints {
+                    // only show remote endpoints
+                    if let Endpoint::Remote(ep) = endpoint {
+                        debug!("{:?}", ep);
+                        if let Some(ep_friendly_name) = pehm.get(&ep.public_key as &str) {
+                            if let Some(ep_friendly_name) = ep_friendly_name.name {
+                                sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.sent_bytes));
+                                received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.received_bytes));
+                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                            } else {
+                                sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
+                                received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
+                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                            }
+                        } else {
+                            sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
+                            received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
+                            latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                        }
+                    }
+                }
+            }
+        } else {
+            for (interface, endpoints) in self.interfaces.iter() {
+                for endpoint in endpoints {
+                    // only show remote endpoints
+                    if let Endpoint::Remote(ep) = endpoint {
+                        debug!("{:?}", ep);
+                        sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
+                        received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
+                        latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                    }
                 }
             }
         }
@@ -170,6 +198,12 @@ impl RenderToPrometheus for WireGuard {
 
         debug!("{}", s);
         s
+    }
+}
+
+impl RenderToPrometheus for WireGuard {
+    fn render(&self) -> String {
+        self.render_with_names(None)
     }
 }
 
