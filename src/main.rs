@@ -21,6 +21,7 @@ use std::process::Command;
 use std::string::String;
 use wireguard::WireGuard;
 mod wireguard_config;
+use wireguard_config::PeerEntryHashMap;
 
 fn check_compliance(req: &Request<Body>) -> Result<(), Response<Body>> {
     if req.uri() != "/metrics" {
@@ -61,6 +62,18 @@ fn handle_request(
     })
 }
 
+fn wg_with_text(
+    wg_config_str: &str,
+    wg_output: ::std::process::Output,
+) -> Result<Response<Body>, ExporterError> {
+    let pehm = PeerEntryHashMap::try_from(wg_config_str)?;
+    println!("pehm == {:?}", pehm);
+
+    let wg_output_string = String::from_utf8(wg_output.stdout)?;
+    let wg = WireGuard::try_from(&wg_output_string as &str)?;
+    Ok(Response::new(Body::from(wg.render())))
+}
+
 fn perform_request(
     _req: Request<Body>,
     options: &Options,
@@ -81,14 +94,9 @@ fn perform_request(
     .and_then(|output| {
         if let Some(extract_names_config_file) = options.extract_names_config_file {
             Either::A(
-                done(String::from_utf8(output.stdout))
+                done(::std::fs::read_to_string(extract_names_config_file))
                     .from_err()
-                    .and_then(|output_str| {
-                        trace!("{}", output_str);
-                        done(WireGuard::try_from(&output_str as &str))
-                            .from_err()
-                            .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
-                    }),
+                    .and_then(|wg_config_string| wg_with_text(&wg_config_string as &str, output)),
             )
         } else {
             Either::B(
