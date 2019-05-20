@@ -63,56 +63,53 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub(crate) struct PeerEntryHashMap<'a>(HashMap<&'a str, PeerEntry<'a>>);
+pub(crate) type PeerEntryHashMap<'a> = (HashMap<&'a str, PeerEntry<'a>>);
 
-impl<'a> TryFrom<&'a str> for PeerEntryHashMap<'a> {
-    type Error = PeerEntryParseError;
+pub(crate) fn peer_entry_hashmap_try_from<'a>(
+    txt: &'a str,
+) -> Result<PeerEntryHashMap, PeerEntryParseError> {
+    let mut hm = HashMap::new();
 
-    fn try_from(txt: &'a str) -> Result<PeerEntryHashMap, Self::Error> {
-        let mut hm = HashMap::new();
+    let mut v_blocks = Vec::new();
+    let mut cur_block: Option<Vec<&str>> = None;
 
-        let mut v_blocks = Vec::new();
-        let mut cur_block: Option<Vec<&str>> = None;
+    for line in txt.lines().into_iter() {
+        if line.starts_with("[") {
+            if let Some(inner_cur_block) = cur_block {
+                // close the block
+                v_blocks.push(inner_cur_block);
+                cur_block = None;
+            }
 
-        for line in txt.lines().into_iter() {
-            if line.starts_with("[") {
-                if let Some(inner_cur_block) = cur_block {
-                    // close the block
-                    v_blocks.push(inner_cur_block);
-                    cur_block = None;
-                }
-
-                if line == "[Peer]" {
-                    // start a new block
-                    cur_block = Some(Vec::new());
-                }
-            } else {
-                // push the line if we are in a block (only if not empty)
-                if let Some(inner_cur_block) = &mut cur_block {
-                    if line != "" {
-                        inner_cur_block.push(line);
-                    }
+            if line == "[Peer]" {
+                // start a new block
+                cur_block = Some(Vec::new());
+            }
+        } else {
+            // push the line if we are in a block (only if not empty)
+            if let Some(inner_cur_block) = &mut cur_block {
+                if line != "" {
+                    inner_cur_block.push(line);
                 }
             }
         }
-
-        if let Some(cur_block) = cur_block {
-            // we have a leftover block
-            v_blocks.push(cur_block);
-        }
-
-        debug!("v_blocks == {:?}", v_blocks);
-
-        for block in &v_blocks {
-            let p: PeerEntry = PeerEntry::try_from(&block as &[&str])?;
-            hm.insert(p.public_key, p);
-        }
-
-        debug!("hm == {:?}", hm);
-
-        Ok(PeerEntryHashMap(hm))
     }
+
+    if let Some(cur_block) = cur_block {
+        // we have a leftover block
+        v_blocks.push(cur_block);
+    }
+
+    debug!("v_blocks == {:?}", v_blocks);
+
+    for block in &v_blocks {
+        let p: PeerEntry = PeerEntry::try_from(&block as &[&str])?;
+        hm.insert(p.public_key, p);
+    }
+
+    debug!("hm == {:?}", hm);
+
+    Ok(hm)
 }
 
 #[cfg(test)]

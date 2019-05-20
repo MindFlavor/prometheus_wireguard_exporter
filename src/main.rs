@@ -21,7 +21,7 @@ use std::process::Command;
 use std::string::String;
 use wireguard::WireGuard;
 mod wireguard_config;
-use wireguard_config::PeerEntryHashMap;
+use wireguard_config::peer_entry_hashmap_try_from;
 
 fn check_compliance(req: &Request<Body>) -> Result<(), Response<Body>> {
     if req.uri() != "/metrics" {
@@ -66,8 +66,8 @@ fn wg_with_text(
     wg_config_str: &str,
     wg_output: ::std::process::Output,
 ) -> Result<Response<Body>, ExporterError> {
-    let pehm = PeerEntryHashMap::try_from(wg_config_str)?;
-    println!("pehm == {:?}", pehm);
+    let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
+    trace!("pehm == {:?}", pehm);
 
     let wg_output_string = String::from_utf8(wg_output.stdout)?;
     let wg = WireGuard::try_from(&wg_output_string as &str)?;
@@ -115,7 +115,7 @@ fn perform_request(
 
 fn main() {
     let matches = clap::App::new("prometheus_wireguard_exporter")
-        .version("0.1")
+        .version("1.2.0")
         .author("Francesco Cogno <francesco.cogno@outlook.com>")
         .arg(
             Arg::with_name("port")
