@@ -42,10 +42,10 @@ Start the binary with `-h` to get the complete syntax. The parameters are:
 | Parameter | Mandatory | Valid values | Default | Description |
 | -- | -- | -- | -- | -- | 
 | `-v` | no | <switch> | | Enable verbose mode.
-| `-p` | no | any valid port number | 9576 | Specify the service port. This is the port your Prometheus instance should point to.
+| `-p` | no | any valid port number | 9586 | Specify the service port. This is the port your Prometheus instance should point to.
 | `-n` | no | path to the wireguard configuration file | | This flag adds the *friendly_name* attribute to the exported entries. See [Friendly names](#friendly-names) for more details.
 
-Once started, the tool will listen on the specified port (or the default one, 9576, if not specified) and return a Prometheus valid response at the url `/metrics`. So to check if the tool is working properly simply browse the `http://localhost:9576/metrics` (or whichever port you choose).
+Once started, the tool will listen on the specified port (or the default one, 9586, if not specified) and return a Prometheus valid response at the url `/metrics`. So to check if the tool is working properly simply browse the `http://localhost:9586/metrics` (or whichever port you choose).
 
 ## Friendly Names
 

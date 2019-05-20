@@ -121,7 +121,7 @@ fn main() {
             Arg::with_name("port")
                 .short("p")
                 .help("exporter port")
-                .default_value("9576")
+                .default_value("9586")
                 .takes_value(true),
         )
         .arg(

@@ -1,6 +1,6 @@
 [package]
 name           = "prometheus_wireguard_exporter"
-version        = "1.2.0"
+version        = "1.2.1"
 authors        = ["Francesco Cogno <francesco.cogno@outlook.com>"]
 description    = "Prometheus WireGuard Exporter"
 edition        = "2018"
