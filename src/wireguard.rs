@@ -4,7 +4,6 @@ use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const EMPTY: &str = "(none)";
 
@@ -23,7 +22,7 @@ pub(crate) struct RemoteEndpoint {
     pub remote_port: Option<u32>,
     pub local_ip: String,
     pub local_subnet: String,
-    pub latest_handshake: SystemTime,
+    pub latest_handshake: u64,
     pub sent_bytes: u128,
     pub received_bytes: u128,
     pub persistent_keepalive: bool,
@@ -90,19 +89,13 @@ impl TryFrom<&str> for WireGuard {
                 let tok: Vec<&str> = v[4].split('/').collect();
                 let (local_ip, local_subnet) = (tok[0].to_owned(), tok[1].to_owned());
 
-                // the latest_handhshake is based on Linux representation: a tick is a second. So
-                // the hack here is: add N seconds to the UNIX_EPOCH constant. This wil not work
-                // on other platforms if the returned ticks are *not* seconds. Sadly I did not find
-                // an alternative way to initialize a SystemTime from a tick number.
                 Endpoint::Remote(RemoteEndpoint {
                     public_key,
                     remote_ip,
                     remote_port,
                     local_ip,
                     local_subnet,
-                    latest_handshake: UNIX_EPOCH
-                        .checked_add(Duration::from_secs(v[5].parse::<u64>()?))
-                        .unwrap(),
+                    latest_handshake: v[5].parse::<u64>()?,
                     sent_bytes: v[6].parse::<u128>().unwrap(),
                     received_bytes: v[7].parse::<u128>().unwrap(),
                     persistent_keepalive: to_bool(v[8]),
@@ -140,18 +133,18 @@ impl WireGuard {
                         debug!("{:?}", ep);
                         if let Some(ep_friendly_name) = pehm.get(&ep.public_key as &str) {
                             if let Some(ep_friendly_name) = ep_friendly_name.name {
-                                sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.sent_bytes));
-                                received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.received_bytes));
-                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                                sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.sent_bytes));
+                                received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.received_bytes));
+                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.latest_handshake));
                             } else {
-                                sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                                received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                                sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
+                                received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
+                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.latest_handshake));
                             }
                         } else {
-                            sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                            received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                            latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                            sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
+                            received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
+                            latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.latest_handshake));
                         }
                     }
                 }
@@ -162,9 +155,9 @@ impl WireGuard {
                     // only show remote endpoints
                     if let Endpoint::Remote(ep) = endpoint {
                         debug!("{:?}", ep);
-                        sent_bytes.push(format!("wireguard_sent_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                        received_bytes.push(format!("wireguard_received_bytes{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                        latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ::std::time::SystemTime::now().duration_since(ep.latest_handshake).unwrap().as_secs()));
+                        sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
+                        received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
+                        latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.latest_handshake));
                     }
                 }
             }
@@ -173,16 +166,16 @@ impl WireGuard {
         let mut s = String::new();
 
         s.push_str(
-            "# HELP wireguard_sent_bytes Bytes sent to the peer
-# TYPE wireguard_sent_bytes counter\n",
+            "# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter\n",
         );
         for peer in sent_bytes {
             s.push_str(&peer);
         }
 
         s.push_str(
-            "# HELP wireguard_received_bytes Bytes received from the peer
-# TYPE wireguard_received_bytes counter\n",
+            "# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter\n",
         );
         for peer in received_bytes {
             s.push_str(&peer);
