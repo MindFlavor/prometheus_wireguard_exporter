@@ -4,6 +4,7 @@ use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::net::SocketAddr;
 
 const EMPTY: &str = "(none)";
 
@@ -11,7 +12,7 @@ const EMPTY: &str = "(none)";
 pub(crate) struct LocalEndpoint {
     pub public_key: String,
     pub private_key: String,
-    pub local_port: u32,
+    pub local_port: u16,
     pub persistent_keepalive: bool,
 }
 
@@ -19,7 +20,7 @@ pub(crate) struct LocalEndpoint {
 pub(crate) struct RemoteEndpoint {
     pub public_key: String,
     pub remote_ip: Option<String>,
-    pub remote_port: Option<u32>,
+    pub remote_port: Option<u16>,
     pub local_ip: String,
     pub local_subnet: String,
     pub latest_handshake: u64,
@@ -69,7 +70,7 @@ impl TryFrom<&str> for WireGuard {
                 Endpoint::Local(LocalEndpoint {
                     public_key: v[1].to_owned(),
                     private_key: v[2].to_owned(),
-                    local_port: v[3].parse::<u32>().unwrap(),
+                    local_port: v[3].parse::<u16>().unwrap(),
                     persistent_keepalive: to_bool(v[4]),
                 })
             } else {
@@ -77,10 +78,11 @@ impl TryFrom<&str> for WireGuard {
                 let public_key = v[1].to_owned();
 
                 let (remote_ip, remote_port) = if let Some(ip_and_port) = to_option_string(v[3]) {
-                    let toks: Vec<&str> = ip_and_port.split(':').collect();
+                    let addr: SocketAddr = ip_and_port.parse::<SocketAddr>().unwrap();
+
                     (
-                        Some(toks[0].to_owned()),
-                        Some(toks[1].parse::<u32>().unwrap()),
+                        Some(addr.ip().to_string()),
+                        Some(addr.port()),
                     )
                 } else {
                     (None, None)
