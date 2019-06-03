@@ -197,7 +197,7 @@ PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 
     #[test]
     fn test_parse_ok() {
-        let a: PeerEntryHashMap = PeerEntryHashMap::try_from(TEXT).unwrap();
+        let a: PeerEntryHashMap = peer_entry_hashmap_try_from(TEXT).unwrap();
         println!("{:?}", a);
     }
 
@@ -206,7 +206,7 @@ PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
         expected = "PublicKeyNotFound { lines: [\"# varch.local (laptop)\", \"AllowedIPs = 10.70.0.3/32\"] }"
     )]
     fn test_parse_no_public_key() {
-        let _: PeerEntryHashMap = PeerEntryHashMap::try_from(TEXT_NOPK).unwrap();
+        let _: PeerEntryHashMap = peer_entry_hashmap_try_from(TEXT_NOPK).unwrap();
     }
 
     #[test]
@@ -214,6 +214,6 @@ PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
         expected = "AllowedIPsEntryNotFound { lines: [\"# cantarch\", \"PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=\"] }"
     )]
     fn test_parse_no_allowed_ips() {
-        let _: PeerEntryHashMap = PeerEntryHashMap::try_from(TEXT_AIP).unwrap();
+        let _: PeerEntryHashMap = peer_entry_hashmap_try_from(TEXT_AIP).unwrap();
     }
 }
