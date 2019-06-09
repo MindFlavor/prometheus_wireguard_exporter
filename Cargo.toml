@@ -1,28 +1,29 @@
 [package]
-name           = "prometheus_wireguard_exporter"
-version        = "2.0.1"
-authors        = ["Francesco Cogno <francesco.cogno@outlook.com>"]
-description    = "Prometheus WireGuard Exporter"
-edition        = "2018"
+name                     = "prometheus_wireguard_exporter"
+version                  = "2.0.2"
+authors                  = ["Francesco Cogno <francesco.cogno@outlook.com>"]
+description              = "Prometheus WireGuard Exporter"
+edition                  = "2018"
 
-readme         = "README.md"
-license        = "MIT"
-repository     = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
-documentation  = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
-homepage       = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
+readme                   = "README.md"
+license                  = "MIT"
+repository               = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
+documentation            = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
+homepage                 = "https://github.com/MindFlavor/prometheus_wireguard_exporter"
 
-keywords       = ["prometheus", "exporter", "wireguard"]
-categories     = ["database"]
-
+keywords                 = ["prometheus", "exporter", "wireguard"]
+categories               = ["database"]
 
 [dependencies]
-log            = "0.4.6"
-env_logger     = "0.6.1"
-futures        = "0.1.27"
-clap           = "2.33.0"
-serde_json     = "1.0.39"
-serde          = "1.0.91"
-serde_derive   = "1.0.91"
-failure        = "0.1.5"
-hyper          = "0.12.29"
-http           = "0.1.17"
+log                      = "0.4.6"
+env_logger               = "0.6.1"
+futures                  = "0.1.27"
+clap                     = "2.33.0"
+serde_json               = "1.0.39"
+serde                    = "1.0.91"
+serde_derive             = "1.0.91"
+failure                  = "0.1.5"
+hyper                    = "0.12.29"
+http                     = "0.1.17"
+prometheus_exporter_base = "0.2.0"
+

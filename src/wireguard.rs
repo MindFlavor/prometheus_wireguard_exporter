@@ -1,7 +1,7 @@
 use crate::exporter_error::ExporterError;
-use crate::render_to_prometheus::RenderToPrometheus;
 use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
+use prometheus_exporter_base::PrometheusCounter;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -80,10 +80,7 @@ impl TryFrom<&str> for WireGuard {
                 let (remote_ip, remote_port) = if let Some(ip_and_port) = to_option_string(v[3]) {
                     let addr: SocketAddr = ip_and_port.parse::<SocketAddr>().unwrap();
 
-                    (
-                        Some(addr.ip().to_string()),
-                        Some(addr.port()),
-                    )
+                    (Some(addr.ip().to_string()), Some(addr.port()))
                 } else {
                     (None, None)
                 };
@@ -122,83 +119,85 @@ impl TryFrom<&str> for WireGuard {
 
 impl WireGuard {
     pub(crate) fn render_with_names(&self, pehm: Option<&PeerEntryHashMap>) -> String {
-        let mut latest_handshakes = Vec::new();
-        let mut sent_bytes = Vec::new();
-        let mut received_bytes = Vec::new();
+        // these are the exported counters
+        let pc_sent_bytes_total = PrometheusCounter::new(
+            "wireguard_sent_bytes_total",
+            "counter",
+            "Bytes sent to the peer",
+        );
+        let pc_received_bytes_total = PrometheusCounter::new(
+            "wireguard_received_bytes_total",
+            "counter",
+            "Bytes received from the peer",
+        );
+        let pc_latest_handshake = PrometheusCounter::new(
+            "wireguard_latest_handshake_seconds",
+            "gauge",
+            "Seconds from the last handshake",
+        );
 
-        if let Some(pehm) = pehm {
-            // here we try to add the "friendly" name looking in the hashmap
-            for (interface, endpoints) in self.interfaces.iter() {
-                for endpoint in endpoints {
-                    // only show remote endpoints
-                    if let Endpoint::Remote(ep) = endpoint {
-                        debug!("{:?}", ep);
+        // these 3 vectors will hold the intermediate
+        // values. We use the vector in order to traverse
+        // the interfaces slice only once: since we need to output
+        // the values grouped by counter we populate the vectors here
+        // and then reorder during the final string creation phase.
+        let mut s_sent_bytes_total = Vec::new();
+        s_sent_bytes_total.push(pc_sent_bytes_total.render_header());
+
+        let mut s_received_bytes_total = Vec::new();
+        s_received_bytes_total.push(pc_received_bytes_total.render_header());
+
+        let mut s_latest_handshake = Vec::new();
+        s_latest_handshake.push(pc_latest_handshake.render_header());
+
+        for (interface, endpoints) in self.interfaces.iter() {
+            for endpoint in endpoints {
+                // only show remote endpoints
+                if let Endpoint::Remote(ep) = endpoint {
+                    debug!("{:?}", ep);
+
+                    let mut attributes: Vec<(&str, &str)> = Vec::new();
+                    attributes.push(("inteface", interface));
+                    attributes.push(("public_key", &ep.public_key));
+                    attributes.push(("local_ip", &ep.local_ip));
+                    attributes.push(("local_subnet", &ep.local_subnet));
+
+                    // let's add the friendly_name attribute if present
+                    // and has meaniningful value
+                    if let Some(pehm) = pehm {
                         if let Some(ep_friendly_name) = pehm.get(&ep.public_key as &str) {
                             if let Some(ep_friendly_name) = ep_friendly_name.name {
-                                sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.sent_bytes));
-                                received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.received_bytes));
-                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\", friendly_name=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep_friendly_name, ep.latest_handshake));
-                            } else {
-                                sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                                received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                                latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.latest_handshake));
+                                attributes.push(("friendly_name", &ep_friendly_name));
                             }
-                        } else {
-                            sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                            received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                            latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.latest_handshake));
                         }
                     }
+
+                    s_sent_bytes_total
+                        .push(pc_sent_bytes_total.render_counter(Some(&attributes), ep.sent_bytes));
+                    s_received_bytes_total.push(
+                        pc_received_bytes_total
+                            .render_counter(Some(&attributes), ep.received_bytes),
+                    );
+                    s_latest_handshake.push(
+                        pc_latest_handshake.render_counter(Some(&attributes), ep.latest_handshake),
+                    );
                 }
             }
-        } else {
-            for (interface, endpoints) in self.interfaces.iter() {
-                for endpoint in endpoints {
-                    // only show remote endpoints
-                    if let Endpoint::Remote(ep) = endpoint {
-                        debug!("{:?}", ep);
-                        sent_bytes.push(format!("wireguard_sent_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.sent_bytes));
-                        received_bytes.push(format!("wireguard_received_bytes_total{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.received_bytes));
-                        latest_handshakes.push(format!("wireguard_latest_handshake_seconds{{inteface=\"{}\", public_key=\"{}\", local_ip=\"{}\", local_subnet=\"{}\"}} {}\n", interface, ep.public_key, ep.local_ip, ep.local_subnet, ep.latest_handshake));
-                    }
-                }
-            }
         }
 
-        let mut s = String::new();
-
-        s.push_str(
-            "# HELP wireguard_sent_bytes_total Bytes sent to the peer
-# TYPE wireguard_sent_bytes_total counter\n",
-        );
-        for peer in sent_bytes {
-            s.push_str(&peer);
+        // now let's join the results and return it to the caller
+        let mut s = String::with_capacity(s_latest_handshake.len() * 64 * 3);
+        for item in s_sent_bytes_total {
+            s.push_str(&item);
+        }
+        for item in s_received_bytes_total {
+            s.push_str(&item);
+        }
+        for item in s_latest_handshake {
+            s.push_str(&item);
         }
 
-        s.push_str(
-            "# HELP wireguard_received_bytes_total Bytes received from the peer
-# TYPE wireguard_received_bytes_total counter\n",
-        );
-        for peer in received_bytes {
-            s.push_str(&peer);
-        }
-
-        s.push_str(
-            "# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
-# TYPE wireguard_latest_handshake_seconds gauge\n",
-        );
-        for peer in latest_handshakes {
-            s.push_str(&peer);
-        }
-
-        debug!("{}", s);
         s
-    }
-}
-
-impl RenderToPrometheus for WireGuard {
-    fn render(&self) -> String {
-        self.render_with_names(None)
     }
 }
 
@@ -228,13 +227,96 @@ wg0\t928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=\t(none)\t5.90.62.106:21741\t10
             Endpoint::Remote(re) => re,
         };
 
-        assert!(e1.public_key == "2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=");
+        assert_eq!(
+            e1.public_key,
+            "2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk="
+        );
     }
 
     #[test]
     fn test_parse_and_serialize() {
         let a = WireGuard::try_from(TEXT).unwrap();
-        let s = a.render();
+        let s = a.render_with_names(None);
         println!("{}", s);
     }
+
+    #[test]
+    fn test_render_to_prometheus_simple() {
+        const REF : &str= "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{inteface=\"Pippo\",public_key=\"test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\"} 1000\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{inteface=\"Pippo\",public_key=\"test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\"} 5000\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{inteface=\"Pippo\",public_key=\"test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\"} 500\n";
+
+        let re = Endpoint::Remote(RemoteEndpoint {
+            public_key: "test".to_owned(),
+            remote_ip: Some("remote_ip".to_owned()),
+            remote_port: Some(100),
+            local_ip: "local_ip".to_owned(),
+            local_subnet: "local_subnet".to_owned(),
+            latest_handshake: 500,
+            sent_bytes: 1000,
+            received_bytes: 5000,
+            persistent_keepalive: false,
+        });
+        let mut wg = WireGuard {
+            interfaces: HashMap::new(),
+        };
+
+        let mut v = Vec::new();
+        v.push(re);
+        wg.interfaces.insert("Pippo".to_owned(), v);
+
+        let prometheus = wg.render_with_names(None);
+
+        assert_eq!(prometheus, REF);
+    }
+
+    #[test]
+    fn test_render_to_prometheus_complex() {
+        use crate::wireguard_config::PeerEntry;
+
+        const REF :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{inteface=\"Pippo\",public_key=\"test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\"} 1000\nwireguard_sent_bytes_total{inteface=\"Pippo\",public_key=\"second_test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\",friendly_name=\"this is my friendly name\"} 14\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{inteface=\"Pippo\",public_key=\"test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\"} 5000\nwireguard_received_bytes_total{inteface=\"Pippo\",public_key=\"second_test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\",friendly_name=\"this is my friendly name\"} 1000000000\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{inteface=\"Pippo\",public_key=\"test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\"} 500\nwireguard_latest_handshake_seconds{inteface=\"Pippo\",public_key=\"second_test\",local_ip=\"local_ip\",local_subnet=\"local_subnet\",friendly_name=\"this is my friendly name\"} 50\n";
+
+        let re1 = Endpoint::Remote(RemoteEndpoint {
+            public_key: "test".to_owned(),
+            remote_ip: Some("remote_ip".to_owned()),
+            remote_port: Some(100),
+            local_ip: "local_ip".to_owned(),
+            local_subnet: "local_subnet".to_owned(),
+            latest_handshake: 500,
+            sent_bytes: 1000,
+            received_bytes: 5000,
+            persistent_keepalive: false,
+        });
+        let re2 = Endpoint::Remote(RemoteEndpoint {
+            public_key: "second_test".to_owned(),
+            remote_ip: Some("remote_ip".to_owned()),
+            remote_port: Some(100),
+            local_ip: "local_ip".to_owned(),
+            local_subnet: "local_subnet".to_owned(),
+            latest_handshake: 50,
+            sent_bytes: 14,
+            received_bytes: 1_000_000_000,
+            persistent_keepalive: false,
+        });
+
+        let mut wg = WireGuard {
+            interfaces: HashMap::new(),
+        };
+
+        let mut v = Vec::new();
+        v.push(re1);
+        v.push(re2);
+        wg.interfaces.insert("Pippo".to_owned(), v);
+
+        let mut pehm = PeerEntryHashMap::new();
+        let pe = PeerEntry {
+            public_key: "second_test",
+            allowed_ips: "ignored",
+            name: Some("this is my friendly name"),
+        };
+        pehm.insert(pe.public_key, pe);
+
+        let prometheus = wg.render_with_names(Some(&pehm));
+
+        assert_eq!(prometheus, REF);
+    }
+
 }

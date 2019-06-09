@@ -2,65 +2,25 @@ extern crate serde_json;
 #[macro_use]
 extern crate failure;
 use clap;
-use clap::Arg;
+use clap::{crate_authors, crate_name, crate_version, Arg};
 use futures::future::{done, ok, Either, Future};
-use http::StatusCode;
-use hyper::service::service_fn;
-use hyper::{Body, Request, Response, Server};
-use log::{error, info, trace};
+use hyper::{Body, Request, Response};
+use log::{info, trace};
 use std::env;
 mod options;
 use options::Options;
-mod exporter_error;
-use exporter_error::ExporterError;
-mod render_to_prometheus;
-use render_to_prometheus::RenderToPrometheus;
 mod wireguard;
 use std::convert::TryFrom;
 use std::process::Command;
 use std::string::String;
 use wireguard::WireGuard;
+mod exporter_error;
 mod wireguard_config;
 use wireguard_config::peer_entry_hashmap_try_from;
-
-fn check_compliance(req: &Request<Body>) -> Result<(), Response<Body>> {
-    if req.uri() != "/metrics" {
-        trace!("uri not allowed {}", req.uri());
-        Err(Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(hyper::Body::empty())
-            .unwrap())
-    } else if req.method() != "GET" {
-        trace!("method not allowed {}", req.method());
-        Err(Response::builder()
-            .status(StatusCode::METHOD_NOT_ALLOWED)
-            .body(hyper::Body::empty())
-            .unwrap())
-    } else {
-        Ok(())
-    }
-}
-
-fn handle_request(
-    req: Request<Body>,
-    options: Options,
-) -> impl Future<Item = Response<Body>, Error = failure::Error> {
-    trace!("{:?}", req);
-
-    done(check_compliance(&req)).then(move |res| match res {
-        Ok(_) => Either::A(perform_request(req, &options).then(|res| match res {
-            Ok(body) => ok(body),
-            Err(err) => {
-                error!("internal server error: {:?}", err);
-                ok(Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(hyper::Body::empty())
-                    .unwrap())
-            }
-        })),
-        Err(err) => Either::B(ok(err)),
-    })
-}
+extern crate prometheus_exporter_base;
+use crate::exporter_error::ExporterError;
+use prometheus_exporter_base::render_prometheus;
+use std::sync::Arc;
 
 fn wg_with_text(
     wg_config_str: &str,
@@ -76,8 +36,8 @@ fn wg_with_text(
 
 fn perform_request(
     _req: Request<Body>,
-    options: &Options,
-) -> impl Future<Item = Response<Body>, Error = ExporterError> {
+    options: &Arc<Options>,
+) -> impl Future<Item = Response<Body>, Error = failure::Error> {
     trace!("perform_request");
 
     // this is needed to satisfy the borrow checker
@@ -91,8 +51,8 @@ fn perform_request(
             .output(),
     )
     .from_err()
-    .and_then(|output| {
-        if let Some(extract_names_config_file) = options.extract_names_config_file {
+    .and_then(move |output| {
+        if let Some(extract_names_config_file) = &options.extract_names_config_file {
             Either::A(
                 done(::std::fs::read_to_string(extract_names_config_file))
                     .from_err()
@@ -106,17 +66,20 @@ fn perform_request(
                         trace!("{}", output_str);
                         done(WireGuard::try_from(&output_str as &str))
                             .from_err()
-                            .and_then(|wg| ok(Response::new(Body::from(wg.render()))))
+                            .and_then(|wg| {
+                                ok(Response::new(Body::from(wg.render_with_names(None))))
+                            })
                     }),
             )
         }
     })
+    .from_err()
 }
 
 fn main() {
-    let matches = clap::App::new("prometheus_wireguard_exporter")
-        .version("1.2.0")
-        .author("Francesco Cogno <francesco.cogno@outlook.com>")
+    let matches = clap::App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!("\n"))
         .arg(
             Arg::with_name("port")
                 .short("p")
@@ -140,9 +103,15 @@ fn main() {
     let options = Options::from_claps(&matches);
 
     if options.verbose {
-        env::set_var("RUST_LOG", "prometheus_wireguard_exporter=trace");
+        env::set_var(
+            "RUST_LOG",
+            format!("{}=trace,prometheus_exporter_base=trace", crate_name!()),
+        );
     } else {
-        env::set_var("RUST_LOG", "prometheus_wireguard_exporter=info");
+        env::set_var(
+            "RUST_LOG",
+            format!("{}=info,prometheus_exporter_base=info", crate_name!()),
+        );
     }
     env_logger::init();
 
@@ -154,13 +123,7 @@ fn main() {
 
     info!("starting exporter on {}", addr);
 
-    let new_svc = move || {
-        let options = options.clone();
-        service_fn(move |req| handle_request(req, options.clone()))
-    };
-
-    let server = Server::bind(&addr)
-        .serve(new_svc)
-        .map_err(|e| eprintln!("server error: {}", e));
-    hyper::rt::run(server);
+    render_prometheus(&addr, options, |request, options| {
+        Box::new(perform_request(request, options))
+    });
 }

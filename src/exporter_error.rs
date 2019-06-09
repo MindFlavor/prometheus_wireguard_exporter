@@ -1,5 +1,5 @@
 #[derive(Debug, Fail)]
-pub(crate) enum PeerEntryParseError {
+pub enum PeerEntryParseError {
     #[fail(display = "PublicKey entry not found in lines: {:?}", lines)]
     PublicKeyNotFound { lines: Vec<String> },
 
@@ -8,7 +8,7 @@ pub(crate) enum PeerEntryParseError {
 }
 
 #[derive(Debug, Fail)]
-pub(crate) enum ExporterError {
+pub enum ExporterError {
     #[allow(dead_code)]
     #[fail(display = "Generic error")]
     Generic {},
