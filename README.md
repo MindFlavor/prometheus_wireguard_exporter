@@ -4,17 +4,17 @@
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
-[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/2.0.1)
-[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/2.0.1)
+[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/2.0.2)
+[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/2.0.2)
 
 [![Build Status](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter.svg?branch=master)](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter) 
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/2.0.1.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/2.0.1.svg)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/2.0.2.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/2.0.2.svg)
 
 ## Intro
 
 A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rust. This tool exports the `wg show all dump` results in a format that [Prometheus](https://prometheus.io/) can understand. The exporter is very light on your server resources, both in terms of memory and CPU usage. 
 
-Starting from release [2.0.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/2.0.1) this exporter supports IPv6 addressess too (thanks to [Maximilian Bosch](https://github.com/Ma27)'s PR [#5](https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/5)).
+Starting from release [2.0.2](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/2.0.2) this exporter supports IPv6 addressess too (thanks to [Maximilian Bosch](https://github.com/Ma27)'s PR [#5](https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/5)).
 
 ![](extra/01.png)
 
