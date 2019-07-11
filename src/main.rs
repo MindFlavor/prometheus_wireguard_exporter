@@ -25,13 +25,17 @@ use std::sync::Arc;
 fn wg_with_text(
     wg_config_str: &str,
     wg_output: ::std::process::Output,
+    options: Arc<Options>,
 ) -> Result<Response<Body>, ExporterError> {
     let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
     trace!("pehm == {:?}", pehm);
 
     let wg_output_string = String::from_utf8(wg_output.stdout)?;
     let wg = WireGuard::try_from(&wg_output_string as &str)?;
-    Ok(Response::new(Body::from(wg.render_with_names(Some(&pehm)))))
+    Ok(Response::new(Body::from(wg.render_with_names(
+        Some(&pehm),
+        options.separate_allowed_ips,
+    ))))
 }
 
 fn perform_request(
@@ -56,21 +60,23 @@ fn perform_request(
             Either::A(
                 done(::std::fs::read_to_string(extract_names_config_file))
                     .from_err()
-                    .and_then(|wg_config_string| wg_with_text(&wg_config_string as &str, output)),
-            )
-        } else {
-            Either::B(
-                done(String::from_utf8(output.stdout))
-                    .from_err()
-                    .and_then(|output_str| {
-                        trace!("{}", output_str);
-                        done(WireGuard::try_from(&output_str as &str))
-                            .from_err()
-                            .and_then(|wg| {
-                                ok(Response::new(Body::from(wg.render_with_names(None))))
-                            })
+                    .and_then(|wg_config_string| {
+                        wg_with_text(&wg_config_string as &str, output, options)
                     }),
             )
+        } else {
+            Either::B(done(String::from_utf8(output.stdout)).from_err().and_then(
+                move |output_str| {
+                    trace!("{}", output_str);
+                    done(WireGuard::try_from(&output_str as &str))
+                        .from_err()
+                        .and_then(move |wg| {
+                            ok(Response::new(Body::from(
+                                wg.render_with_names(None, options.separate_allowed_ips),
+                            )))
+                        })
+                },
+            ))
         }
     })
     .from_err()
@@ -94,6 +100,12 @@ fn main() {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("separate_allowed_ips")
+                .short("s")
+                .help("separate allowed ips and ports")
+                .takes_value(false),
+        )
+         .arg(
             Arg::with_name("extract_names_config_file")
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
