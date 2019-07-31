@@ -49,7 +49,8 @@ Start the binary with `-h` to get the complete syntax. The parameters are:
 | `-v` | no | <switch> | | Enable verbose mode.
 | `-p` | no | any valid port number | 9586 | Specify the service port. This is the port your Prometheus instance should point to.
 | `-n` | no | path to the wireguard configuration file | | This flag adds the *friendly_name* attribute to the exported entries. See [Friendly names](#friendly-names) for more details.
-| `-s` | no | <switch> | off | Enabled the allowed ip + subnet split mode for the labels.
+| `-s` | no | <switch> | off | Enable the allowed ip + subnet split mode for the labels.
+| `-r` | no | <switch> | off | Exports peer's remote ip and port as labels (if available).
 
 Once started, the tool will listen on the specified port (or the default one, 9586, if not specified) and return a Prometheus valid response at the url `/metrics`. So to check if the tool is working properly simply browse the `http://localhost:9586/metrics` (or whichever port you choose).
 

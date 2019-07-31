@@ -35,6 +35,7 @@ fn wg_with_text(
     Ok(Response::new(Body::from(wg.render_with_names(
         Some(&pehm),
         options.separate_allowed_ips,
+        options.export_remote_ip_and_port,
     ))))
 }
 
@@ -71,9 +72,11 @@ fn perform_request(
                     done(WireGuard::try_from(&output_str as &str))
                         .from_err()
                         .and_then(move |wg| {
-                            ok(Response::new(Body::from(
-                                wg.render_with_names(None, options.separate_allowed_ips),
-                            )))
+                            ok(Response::new(Body::from(wg.render_with_names(
+                                None,
+                                options.separate_allowed_ips,
+                                options.export_remote_ip_and_port,
+                            ))))
                         })
                 },
             ))
@@ -105,7 +108,13 @@ fn main() {
                 .help("separate allowed ips and ports")
                 .takes_value(false),
         )
-         .arg(
+        .arg(
+            Arg::with_name("export_remote_ip_and_port")
+                .short("r")
+                .help("exports peer's remote ip and port as labels (if available)")
+                .takes_value(false),
+        )
+          .arg(
             Arg::with_name("extract_names_config_file")
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")

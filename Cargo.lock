@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "prometheus_wireguard_exporter"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",

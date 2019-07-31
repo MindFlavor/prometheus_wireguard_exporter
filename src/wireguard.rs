@@ -119,6 +119,7 @@ impl WireGuard {
         &self,
         pehm: Option<&PeerEntryHashMap>,
         split_allowed_ips: bool,
+        export_remote_ip_and_port: bool,
     ) -> String {
         // these are the exported counters
         let pc_sent_bytes_total = PrometheusCounter::new(
@@ -200,11 +201,13 @@ impl WireGuard {
                         }
                     }
 
-                    if let Some(r_ip) = &ep.remote_ip {
-                        attributes.push(("remote_ip", &r_ip));
-                    }
-                    if let Some(r_port) = &ep.remote_port {
-                        attributes_owned.push(("remote_port".to_string(), r_port.to_string()));
+                    if export_remote_ip_and_port {
+                        if let Some(r_ip) = &ep.remote_ip {
+                            attributes.push(("remote_ip", &r_ip));
+                        }
+                        if let Some(r_port) = &ep.remote_port {
+                            attributes_owned.push(("remote_port".to_string(), r_port.to_string()));
+                        }
                     }
 
                     for (label, val) in &attributes_owned {
@@ -278,7 +281,7 @@ wg0\t928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=\t(none)\t5.90.62.106:21741\t10
     #[test]
     fn test_parse_and_serialize() {
         let a = WireGuard::try_from(TEXT).unwrap();
-        let s = a.render_with_names(None, false);
+        let s = a.render_with_names(None, false, true);
         println!("{}", s);
     }
 
@@ -304,7 +307,7 @@ wg0\t928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=\t(none)\t5.90.62.106:21741\t10
         v.push(re);
         wg.interfaces.insert("Pippo".to_owned(), v);
 
-        let prometheus = wg.render_with_names(None, false);
+        let prometheus = wg.render_with_names(None, false, true);
 
         assert_eq!(prometheus, REF);
     }
@@ -316,6 +319,8 @@ wg0\t928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=\t(none)\t5.90.62.106:21741\t10
         const REF :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 14\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000000000\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 50\n";
 
         const REF_SPLIT :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 14\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 1000000000\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 50\n";
+
+        const REF_SPLIT_NO_REMOTE :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 14\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 1000000000\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 50\n";
 
         let re1 = Endpoint::Remote(RemoteEndpoint {
             public_key: "test".to_owned(),
@@ -355,11 +360,13 @@ wg0\t928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=\t(none)\t5.90.62.106:21741\t10
         };
         pehm.insert(pe.public_key, pe);
 
-        let prometheus = wg.render_with_names(Some(&pehm), false);
+        let prometheus = wg.render_with_names(Some(&pehm), false, true);
         assert_eq!(prometheus, REF);
 
-        let prometheus = wg.render_with_names(Some(&pehm), true);
+        let prometheus = wg.render_with_names(Some(&pehm), true, true);
         assert_eq!(prometheus, REF_SPLIT);
-    }
 
+        let prometheus = wg.render_with_names(Some(&pehm), true, false);
+        assert_eq!(prometheus, REF_SPLIT_NO_REMOTE);
+    }
 }
