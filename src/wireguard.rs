@@ -92,8 +92,8 @@ impl TryFrom<&str> for WireGuard {
                     remote_port,
                     allowed_ips,
                     latest_handshake: v[5].parse::<u64>()?,
-                    sent_bytes: v[6].parse::<u128>().unwrap(),
-                    received_bytes: v[7].parse::<u128>().unwrap(),
+                    received_bytes: v[6].parse::<u128>().unwrap(),
+                    sent_bytes: v[7].parse::<u128>().unwrap(),
                     persistent_keepalive: to_bool(v[8]),
                 })
             };
