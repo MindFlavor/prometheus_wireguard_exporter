@@ -1,25 +1,25 @@
 # Prometheus WireGuard Exporter
 
-[![legal](https://img.shields.io/github/license/mindflavor/prometheus_wireguard_exporter.svg)](LICENSE)  
+[![legal](https://img.shields.io/github/license/mindflavor/prometheus_wireguard_exporter.svg)](LICENSE)
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
 [![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.1.0)
 [![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.1.0)
 
-[![Build Status](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter.svg?branch=master)](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter) 
+[![Build Status](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter.svg?branch=master)](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter)
 [![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.1.0.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.1.0.svg)
 
 ## Intro
 
-A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rust. This tool exports the `wg show all dump` results in a format that [Prometheus](https://prometheus.io/) can understand. The exporter is very light on your server resources, both in terms of memory and CPU usage. 
+A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rust. This tool exports the `wg show all dump` results in a format that [Prometheus](https://prometheus.io/) can understand. The exporter is very light on your server resources, both in terms of memory and CPU usage.
 
 Starting from release [2.0.2](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/2.0.2) this exporter supports IPv6 addressess too (thanks to [Maximilian Bosch](https://github.com/Ma27)'s PR [#5](https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/5)).
 From release [3.0.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.0.0) the exporter allows two label modes: one is to dump every allowed ip in a single label (called `allowed_ips`) along with their subnets. The second one is to create a pair of labels for each allowed ip/subnet pair (called `allowed_ip_0`/`allowed_subnet_0`, `allowed_ip_1`/`allowed_subnet_1` and so on for every allowed ip). The default if the single label mode but you can enable the second mode by specifying the `-s` switch at startup. Thank you [Toon Schoenmakers](https://github.com/schoentoon) for this solution (see [https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/8](https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/8)).
 
 ![](extra/01.png)
 
-## Prerequisites 
+## Prerequisites
 
 * You need [Rust](https://www.rust-lang.org/) to compile this code. Simply follow the instructions on Rust's website to install the toolchain. If you get weird errors while compiling please try and update your Rust version first (I have developed it on `rustc 1.35.0-nightly (8159f389f 2019-04-06)`).
 * You need [WireGuard](https://www.wireguard.com) *and* the `wg` CLI in the path. The tool will call `wg show all dump` and of course will fail if the `wg` executable is not found. If you want I can add the option of specifying the `wg` path in the command line, just open an issue for it.
@@ -45,8 +45,9 @@ cargo install prometheus_wireguard_exporter
 Start the binary with `-h` to get the complete syntax. The parameters are:
 
 | Parameter | Mandatory | Valid values | Default | Description |
-| -- | -- | -- | -- | -- | 
+| -- | -- | -- | -- | -- |
 | `-v` | no | <switch> | | Enable verbose mode.
+| `-p` | no | any valid ip address | 127.0.0.1 | Specify the service address. This is the address your Prometheus instance should point to.
 | `-p` | no | any valid port number | 9586 | Specify the service port. This is the port your Prometheus instance should point to.
 | `-n` | no | path to the wireguard configuration file | | This flag adds the *friendly_name* attribute to the exported entries. See [Friendly names](#friendly-names) for more details.
 | `-s` | no | <switch> | off | Enable the allowed ip + subnet split mode for the labels.
@@ -146,7 +147,7 @@ AllowedIPs = 10.70.0.80/32
 
 As you can see, all you need to do is to add the friendly name as comment (and enable the flag since this feature is opt-in).
 
-This is a sample of the label split mode: 
+This is a sample of the label split mode:
 
 ```
 # HELP wireguard_sent_bytes_total Bytes sent to the peer

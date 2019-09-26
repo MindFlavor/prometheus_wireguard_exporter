@@ -21,6 +21,7 @@ extern crate prometheus_exporter_base;
 use crate::exporter_error::ExporterError;
 use prometheus_exporter_base::render_prometheus;
 use std::sync::Arc;
+use std::net::Ipv4Addr;
 
 fn wg_with_text(
     wg_config_str: &str,
@@ -90,6 +91,13 @@ fn main() {
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .arg(
+            Arg::with_name("addr")
+                .short("l")
+                .help("exporter address")
+                .default_value("127.0.0.1")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("port")
                 .short("p")
                 .help("exporter port")
@@ -140,9 +148,10 @@ fn main() {
 
     let bind = matches.value_of("port").unwrap();
     let bind = u16::from_str_radix(&bind, 10).expect("port must be a valid number");
-    let addr = ([0, 0, 0, 0], bind).into();
+    let ip = matches.value_of("addr").unwrap().parse::<Ipv4Addr>().unwrap();
+    let addr = (ip, bind).into();
 
-    info!("starting exporter on {}", addr);
+    info!("starting exporter on http://{}/metrics", addr);
 
     render_prometheus(&addr, options, |request, options| {
         Box::new(perform_request(request, options))
