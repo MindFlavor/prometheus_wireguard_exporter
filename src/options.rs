@@ -24,4 +24,17 @@ impl Options {
             }
         }
     }
+
+    pub fn get_interface(&self) -> Option<&str> {
+        if let Some(config_file) = &self.extract_names_config_file {
+            let path = std::path::Path::new(config_file);
+            if let Some(file_stem) = path.file_stem() {
+                file_stem.to_str()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }

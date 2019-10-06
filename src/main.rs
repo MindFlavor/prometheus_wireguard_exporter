@@ -5,7 +5,7 @@ use clap;
 use clap::{crate_authors, crate_name, crate_version, Arg};
 use futures::future::{done, ok, Either, Future};
 use hyper::{Body, Request, Response};
-use log::{info, trace};
+use log::{debug, info, trace};
 use std::env;
 mod options;
 use options::Options;
@@ -49,10 +49,17 @@ fn perform_request(
     // this is needed to satisfy the borrow checker
     let options = options.clone();
 
+    let interface = match options.get_interface() {
+        Some(interface) => interface,
+        None => "all",
+    };
+
+    debug!("using inteface {}", interface);
+
     done(
         Command::new("wg")
             .arg("show")
-            .arg("all")
+            .arg(interface)
             .arg("dump")
             .output(),
     )
