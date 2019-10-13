@@ -32,6 +32,7 @@ fn wg_with_text(
     trace!("pehm == {:?}", pehm);
 
     let wg_output_string = String::from_utf8(wg_output.stdout)?;
+
     let wg = WireGuard::try_from(&wg_output_string as &str)?;
     Ok(Response::new(Body::from(wg.render_with_names(
         Some(&pehm),
@@ -40,15 +41,66 @@ fn wg_with_text(
     ))))
 }
 
+fn perform_request2(
+    _req: Request<Body>,
+    options: &Arc<Options>,
+) -> impl Future<Item = Response<Body>, Error = failure::Error> {
+    trace!("perform_request");
+    // this is needed to satisfy the borrow checker
+    let options = options.clone();
+    debug!("options == {:?}", options);
+
+    //let interface = options.get_interface();
+
+    let interface_str = match options.get_interface() {
+        Some(interface_str) => interface_str,
+        None => "all",
+    }
+    .to_owned();
+
+    debug!("using inteface_str {}", interface_str);
+
+    done(
+        Command::new("wg")
+            .arg("show")
+            .arg(&interface_str)
+            .arg("dump")
+            .output(),
+    )
+    .from_err()
+    .and_then(move |output| {
+        done(String::from_utf8(output.stdout))
+            .from_err()
+            .and_then(move |output_str| {
+                // the output of wg show is different if we use all or we specify an interface.
+                // In the first case the first column will be the interface name. In the second case
+                // the interface name will be omitted. We need to compensate for the skew somehow (one
+                // column less in the second case). We solve this prepending the interface name in every
+                // line so the output of the second case will be equal to the first case.
+
+                if interface_str != "all" {
+                    let mut result = String::new();
+                    for s in interface_str.lines() {
+                        result.push_str(&format!("{} {}\n", interface_str, s));
+                    }
+                }
+
+                println!("ok");
+                ok(Response::new(Body::from(output_str)))
+            })
+    })
+}
+
 fn perform_request(
     _req: Request<Body>,
     options: &Arc<Options>,
 ) -> impl Future<Item = Response<Body>, Error = failure::Error> {
     trace!("perform_request");
 
+    perform_request2(_req, options);
+
     // this is needed to satisfy the borrow checker
     let options = options.clone();
-
     debug!("options == {:?}", options);
 
     let interface = match options.get_interface() {
@@ -67,6 +119,12 @@ fn perform_request(
     )
     .from_err()
     .and_then(move |output| {
+        // the output of wg show is different if we use all or we specify an interface.
+        // In the first case the first column will be the interface name. In the second case
+        // the interface name will be omitted. We need to compensate for the skew somehow (one
+        // column less in the second case). We solve this prepending the interface name in every
+        // line so the output of the second case will be equal to the first case.
+
         if let Some(extract_names_config_file) = &options.extract_names_config_file {
             Either::A(
                 done(::std::fs::read_to_string(extract_names_config_file))
