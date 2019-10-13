@@ -76,9 +76,10 @@ fn perform_request(
                 // column less in the second case). We solve this prepending the interface name in every
                 // line so the output of the second case will be equal to the first case.
                 let output_str = if interface_str != "all" {
+                    debug!("injecting {} to the wg show output", interface_str);
                     let mut result = String::new();
                     for s in output_str.lines() {
-                        result.push_str(&format!("{} {}\n", interface_str, s));
+                        result.push_str(&format!("{}\t{}\n", interface_str, s));
                     }
                     result
                 } else {
