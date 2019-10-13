@@ -5,7 +5,7 @@ use clap;
 use clap::{crate_authors, crate_name, crate_version, Arg};
 use futures::future::{done, ok, Either, Future};
 use hyper::{Body, Request, Response};
-use log::{info, trace};
+use log::{debug, info, trace};
 use std::env;
 mod options;
 use options::Options;
@@ -25,14 +25,13 @@ use std::sync::Arc;
 
 fn wg_with_text(
     wg_config_str: &str,
-    wg_output: ::std::process::Output,
+    wg_output_str: &str,
     options: Arc<Options>,
 ) -> Result<Response<Body>, ExporterError> {
     let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
     trace!("pehm == {:?}", pehm);
 
-    let wg_output_string = String::from_utf8(wg_output.stdout)?;
-    let wg = WireGuard::try_from(&wg_output_string as &str)?;
+    let wg = WireGuard::try_from(wg_output_str)?;
     Ok(Response::new(Body::from(wg.render_with_names(
         Some(&pehm),
         options.separate_allowed_ips,
@@ -45,45 +44,75 @@ fn perform_request(
     options: &Arc<Options>,
 ) -> impl Future<Item = Response<Body>, Error = failure::Error> {
     trace!("perform_request");
-
     // this is needed to satisfy the borrow checker
     let options = options.clone();
+    debug!("options == {:?}", options);
+
+    //let interface = options.get_interface();
+
+    let interface_str = match options.get_interface() {
+        Some(interface_str) => interface_str,
+        None => "all",
+    }
+    .to_owned();
+
+    debug!("using inteface_str {}", interface_str);
 
     done(
         Command::new("wg")
             .arg("show")
-            .arg("all")
+            .arg(&interface_str)
             .arg("dump")
             .output(),
     )
     .from_err()
     .and_then(move |output| {
-        if let Some(extract_names_config_file) = &options.extract_names_config_file {
-            Either::A(
-                done(::std::fs::read_to_string(extract_names_config_file))
-                    .from_err()
-                    .and_then(|wg_config_string| {
-                        wg_with_text(&wg_config_string as &str, output, options)
-                    }),
-            )
-        } else {
-            Either::B(done(String::from_utf8(output.stdout)).from_err().and_then(
-                move |output_str| {
-                    trace!("{}", output_str);
-                    done(WireGuard::try_from(&output_str as &str))
-                        .from_err()
-                        .and_then(move |wg| {
-                            ok(Response::new(Body::from(wg.render_with_names(
-                                None,
-                                options.separate_allowed_ips,
-                                options.export_remote_ip_and_port,
-                            ))))
-                        })
-                },
-            ))
-        }
+        done(String::from_utf8(output.stdout))
+            .from_err()
+            .and_then(move |output_str| {
+                trace!("wg show output == {}", output_str);
+
+                // the output of wg show is different if we use all or we specify an interface.
+                // In the first case the first column will be the interface name. In the second case
+                // the interface name will be omitted. We need to compensate for the skew somehow (one
+                // column less in the second case). We solve this prepending the interface name in every
+                // line so the output of the second case will be equal to the first case.
+                let output_str = if interface_str != "all" {
+                    debug!("injecting {} to the wg show output", interface_str);
+                    let mut result = String::new();
+                    for s in output_str.lines() {
+                        result.push_str(&format!("{}\t{}\n", interface_str, s));
+                    }
+                    result
+                } else {
+                    output_str
+                };
+
+                if let Some(extract_names_config_file) = &options.extract_names_config_file {
+                    Either::A(
+                        done(::std::fs::read_to_string(extract_names_config_file))
+                            .from_err()
+                            .and_then(move |wg_config_string| {
+                                wg_with_text(&wg_config_string as &str, &output_str, options)
+                            }),
+                    )
+                } else {
+                    Either::B({
+                        trace!("{}", output_str);
+                        done(WireGuard::try_from(&output_str as &str))
+                            .from_err()
+                            .and_then(move |wg| {
+                                ok(Response::new(Body::from(wg.render_with_names(
+                                    None,
+                                    options.separate_allowed_ips,
+                                    options.export_remote_ip_and_port,
+                                ))))
+                            })
+                    })
+                }
+            })
+            .from_err()
     })
-    .from_err()
 }
 
 fn main() {
