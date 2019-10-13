@@ -49,7 +49,7 @@ fn perform_request(
     // this is needed to satisfy the borrow checker
     let options = options.clone();
 
-    debug!("parsing interfaces...");
+    debug!("options == {:?}", options);
 
     let interface = match options.get_interface() {
         Some(interface) => interface,
