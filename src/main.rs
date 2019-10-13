@@ -70,6 +70,8 @@ fn perform_request(
         done(String::from_utf8(output.stdout))
             .from_err()
             .and_then(move |output_str| {
+                trace!("wg show output == {}", output_str);
+
                 // the output of wg show is different if we use all or we specify an interface.
                 // In the first case the first column will be the interface name. In the second case
                 // the interface name will be omitted. We need to compensate for the skew somehow (one
