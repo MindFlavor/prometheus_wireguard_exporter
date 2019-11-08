@@ -5,6 +5,7 @@ use prometheus_exporter_base::PrometheusCounter;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
+use regex::Regex;
 
 const EMPTY: &str = "(none)";
 
@@ -77,7 +78,8 @@ impl TryFrom<&str> for WireGuard {
                 let public_key = v[1].to_owned();
 
                 let (remote_ip, remote_port) = if let Some(ip_and_port) = to_option_string(v[3]) {
-                    let addr: SocketAddr = ip_and_port.parse::<SocketAddr>().unwrap();
+                    let re = Regex::new(r"^\[(?P<ip>[A-Fa-f0-9:]+)%(.*)\]:(?P<port>[0-9]+)$").unwrap();
+                    let addr: SocketAddr = re.replace_all(&ip_and_port, "[$ip]:$port").parse::<SocketAddr>().unwrap();
 
                     (Some(addr.ip().to_string()), Some(addr.port()))
                 } else {
