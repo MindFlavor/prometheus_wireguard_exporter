@@ -2,10 +2,10 @@ use crate::exporter_error::ExporterError;
 use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
 use prometheus_exporter_base::PrometheusCounter;
+use regex::Regex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
-use regex::Regex;
 
 const EMPTY: &str = "(none)";
 
@@ -78,8 +78,17 @@ impl TryFrom<&str> for WireGuard {
                 let public_key = v[1].to_owned();
 
                 let (remote_ip, remote_port) = if let Some(ip_and_port) = to_option_string(v[3]) {
-                    let re = Regex::new(r"^\[(?P<ip>[A-Fa-f0-9:]+)%(.*)\]:(?P<port>[0-9]+)$").unwrap();
-                    let addr: SocketAddr = re.replace_all(&ip_and_port, "[$ip]:$port").parse::<SocketAddr>().unwrap();
+                    // this workaround fixes issue #10 (see
+                    // https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/10).
+                    // Whenever it will be fixed upstream this code will be replaced with a
+                    // simple
+                    // let addr: SocketAddr = ip_and_port.parse::<SocketAddr>().unwrap();
+                    let re =
+                        Regex::new(r"^\[(?P<ip>[A-Fa-f0-9:]+)%(.*)\]:(?P<port>[0-9]+)$").unwrap();
+                    let addr: SocketAddr = re
+                        .replace_all(&ip_and_port, "[$ip]:$port")
+                        .parse::<SocketAddr>()
+                        .unwrap();
 
                     (Some(addr.ip().to_string()), Some(addr.port()))
                 } else {
