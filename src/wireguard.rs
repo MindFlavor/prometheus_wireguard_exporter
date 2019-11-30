@@ -268,6 +268,31 @@ pollo\tYdVOIPKt9K2MPsO2NlWQbOnFJcL/qX80mmhQwsUlA=\t(none)\t(none)\t10.70.70.50/3
 wg0\t928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=\t(none)\t5.90.62.106:21741\t10.70.0.80/32\t1555344925\t283012\t6604620\toff
 ";
 
+    const TEXT_ISSUE_19 : &'static str = "wg0   wJyy0Xcqk76dNQI8bnzaQvrtle5Od+wft1RBK3fC8kc=\tVfjHGauX8OxotDMm2vi3JdwOUTDsFbxCnyInJ/wAXlk=\t51820\toff
+wg0\t923V/iAdcz8BcqB0Xo6pDJzARGBJCQ6fWe+peixQyB4=\t(none)\tx.x.x.x:51820\t10.90.0.10/32,10.0.1.0/24\t0\t0\t0\toff
+wg0\t9M1fhLa9sIlT39z+SI/0a5H3mNSHYmM+NGA6sirD2nU=\t(none)\tx.x.x.x:51820\t10.90.0.3/32,10.198.171.0/24\t0\t0\t0\toff
+wg0\tgnRKXngxSppcYegsg38kEFn5Lmk4NcnRXLcZTtg2A2E=\t(none)\tx.x.x.x:51820\t10.90.0.11/32,10.189.143.0/24\t0\t0\t0\toff
+wg0\tYW7NBDEPXuW9GQlFWFzpgrivMxzdR55M8VOTX+E0thw=\t(none)\tx.x.x.x:51820\t10.90.0.12/32,10.0.2.0/24\t0\t0\t0\toff
+wg0\teVfg1BH1hcteASE16+TjShxAJNyFLQ9QIcnCaylD/AA=\t(none)\tx.x.x.x:51820\t10.90.0.13/32,10.0.3.0/24\t0\t0\t0\toff
+wg0\tlh1h+tWPahB+PAWW62ExHVVrOp9IwdjYwaGnPIXgNwY=\t(none)\tx.x.x.x:51820\t10.90.0.9/32,10.0.4.0/24\t0\t0\t0\toff
+wg0\tVQIrk1BiBfbOkkKGPiarEvhA4iPuszIL1lddvvFDvE0=\t(none)\tx.x.x.x:51820\t10.90.0.8/32,10.0.5.0/24\t0\t0\t0\toff
+wg0\tSMp58OwCNnwlzu+OdpA8xiNJzOwbl2gdMaD9CSZCC24=\t(none)\tx.x.x.x:51820\t10.90.0.14/32,10.0.6.0/24\t0\t0\t0\toff
+wg0\t+0+yMIHVCqyIf4by1gxAjqQ92iKv3bQ/JctNVUEpSlU=\t(none)\tx.x.x.x:51820\t10.90.0.7/32,10.0.7.0/24\t0\t0\t0\toff
+wg0\t2StYqQY9tyVkGcO4ykKTiTu6AQp/yIYx8I4hwBLO1jA=\t(none)\tx.x.x.x:51820\t10.90.0.15/32,10.0.8.0/24\t0\t0\t0\toff
+wg0\tqa0AMD2puDBBrs8NYQ+skIrIi/Q5NgQRZLEh5p80Mnc=\t(none)\tx.x.x.x:51820\t10.90.0.1/32,10.0.10.0/24\t0\t0\t0\toff
+wg0\tYwObmKDK4lfr5F6FHqJhDy9nkUQwbuK8wh4ac2VNSEU=\t(none)\tx.x.x.x:51820\t10.90.0.2/32,10.0.11.0/24\t0\t0\t0\toff
+wg0\tq07dm9n1UMLFbG6Dh+BNztCt7jVb9VtpVshQEf580kA=\t(none)\tx.x.x.x:51820\t10.90.0.6/32,10.0.13.0/24\t0\t0\t0\toff
+wg0\tyZOoC2t6pBcXvoczuiJqrQ+8CYvJCzcq8aqyp+APaAE=\t(none)\tx.x.x.x:51820\t10.90.0.16/32,10.0.14.0/24\t1574770531\t1232856\t12306832\toff
+wg0\tyjeBkrZqUThSSHySFzWCjxAH8cxtiWSI2I8JFD6t1UM=\t(none)\tx.x.x.x:51820\t10.90.0.5/32\t1574770705\t18576788764\t10642564136\toff
+wg0\tHtOSi37ALMnSkeAFqeWYZqlBnZqAJERhb5o/i3ZPEFI=\t(none)\tx.x.x.x:51820\t10.90.0.17/32\t1574770783\t62592693520\t1439257868\toff
+wg0\tsUsR6xufQQ8Tf0FuyY9tfEeYdhVMeFelr4ZMUrj+B0E=\t(none)\tx.x.x.x:51820\t10.90.0.18/32\t1574770693\t75066288152\t1624251784\toff";
+
+    #[test]
+    fn test_parse_issue_19() {
+        let a = WireGuard::try_from(TEXT_ISSUE_19).unwrap();
+        println!("{:?}", a);
+    }
+
     #[test]
     fn test_parse() {
         let a = WireGuard::try_from(TEXT).unwrap();
