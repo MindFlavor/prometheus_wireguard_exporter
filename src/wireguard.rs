@@ -56,14 +56,14 @@ impl TryFrom<&str> for WireGuard {
     type Error = ExporterError;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
-        debug!("wireguard::try_from({}) called", input);
+        debug!("WireGuard::try_from({}) called", input);
         let mut wg = WireGuard {
             interfaces: HashMap::new(),
         };
 
         for line in input.lines() {
             let v: Vec<&str> = line.split('\t').filter(|s| !s.is_empty()).collect();
-            debug!("v == {:?}", v);
+            debug!("WireGuard::try_from v == {:?}", v);
 
             let endpoint = if v.len() == 5 {
                 // this is the local interface
@@ -109,7 +109,7 @@ impl TryFrom<&str> for WireGuard {
                 })
             };
 
-            trace!("{:?}", endpoint);
+            trace!("WireGuard::try_from endpoint == {:?}", endpoint);
 
             if let Some(endpoints) = wg.interfaces.get_mut(v[0]) {
                 endpoints.push(endpoint);
@@ -132,6 +132,8 @@ impl WireGuard {
         split_allowed_ips: bool,
         export_remote_ip_and_port: bool,
     ) -> String {
+        debug!("WireGuard::render_with_names(pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called", pehm, split_allowed_ips,export_remote_ip_and_port);
+
         // these are the exported counters
         let pc_sent_bytes_total = PrometheusCounter::new(
             "wireguard_sent_bytes_total",
@@ -167,7 +169,7 @@ impl WireGuard {
             for endpoint in endpoints {
                 // only show remote endpoints
                 if let Endpoint::Remote(ep) = endpoint {
-                    debug!("{:?}", ep);
+                    debug!("WireGuard::render_with_names ep == {:?}", ep);
 
                     // we store in attributes_owned the ownership of the values in order to
                     // store in attibutes their references. attributes_owned is onyl
@@ -183,9 +185,12 @@ impl WireGuard {
                             .allowed_ips
                             .split(',')
                             .map(|ip_and_subnet| {
-                                debug!("ip_and_subnet == {:?}", ip_and_subnet);
+                                debug!(
+                                    "WireGuard::render_with_names ip_and_subnet == {:?}",
+                                    ip_and_subnet
+                                );
                                 let tokens: Vec<&str> = ip_and_subnet.split('/').collect();
-                                debug!("tokens == {:?}", tokens);
+                                debug!("WireGuard::render_with_names tokens == {:?}", tokens);
                                 let addr = tokens[0];
                                 let subnet = tokens[1];
                                 (addr, subnet)
@@ -197,7 +202,10 @@ impl WireGuard {
                             attributes_owned
                                 .push((format!("allowed_subnet_{}", idx), subnet.to_string()));
                         }
-                        debug!("attributes == {:?}", attributes);
+                        debug!(
+                            "WireGuard::render_with_names attributes == {:?}",
+                            attributes
+                        );
                     } else {
                         attributes.push(("allowed_ips", &ep.allowed_ips));
                     }
@@ -387,7 +395,7 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         assert_eq!(s, s_ok);
     }
 
-    //#[test]
+    #[test]
     fn test_parse() {
         let a = WireGuard::try_from(TEXT).unwrap();
         println!("{:?}", a);
@@ -408,14 +416,14 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         assert_eq!(e1.allowed_ips, "10.70.0.2/32,10.70.0.66/32".to_owned());
     }
 
-    //#[test]
+    #[test]
     fn test_parse_and_serialize() {
         let a = WireGuard::try_from(TEXT).unwrap();
         let s = a.render_with_names(None, false, true);
         println!("{}", s);
     }
 
-    //#[test]
+    #[test]
     fn test_render_to_prometheus_simple() {
         const REF : &str= "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500\n";
 
@@ -442,7 +450,7 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         assert_eq!(prometheus, REF);
     }
 
-    //#[test]
+    #[test]
     fn test_render_to_prometheus_complex() {
         use crate::wireguard_config::PeerEntry;
 
