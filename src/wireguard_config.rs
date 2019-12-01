@@ -27,6 +27,8 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
     type Error = PeerEntryParseError;
 
     fn try_from(lines: &[&'a str]) -> Result<PeerEntry<'a>, Self::Error> {
+        debug!("PeerEntry::TryFrom with lines == {:?}", lines);
+
         let mut public_key = "";
         let mut allowed_ips = "";
         let mut name = None;
@@ -54,11 +56,13 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
             let lines_owned: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
             Err(PeerEntryParseError::AllowedIPsEntryNotFound { lines: lines_owned })
         } else {
-            Ok(PeerEntry {
+            let pe = PeerEntry {
                 public_key,
                 allowed_ips,
                 name, // name can be None
-            })
+            };
+            debug!("PeerEntryHasMap == {:?}", pe);
+            Ok(pe)
         }
     }
 }

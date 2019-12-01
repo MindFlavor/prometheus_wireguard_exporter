@@ -151,7 +151,7 @@ fn main() {
                 .help("exports peer's remote ip and port as labels (if available)")
                 .takes_value(false),
         )
-          .arg(
+        .arg(
             Arg::with_name("extract_names_config_file")
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
