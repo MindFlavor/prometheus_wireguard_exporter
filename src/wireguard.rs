@@ -1,7 +1,7 @@
 use crate::exporter_error::ExporterError;
 use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
-use prometheus_exporter_base::PrometheusCounter;
+use prometheus_exporter_base::{MetricType, PrometheusMetric};
 use regex::Regex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -135,19 +135,19 @@ impl WireGuard {
         debug!("WireGuard::render_with_names(self == {:?}, pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called", self, pehm, split_allowed_ips,export_remote_ip_and_port);
 
         // these are the exported counters
-        let pc_sent_bytes_total = PrometheusCounter::new(
+        let pc_sent_bytes_total = PrometheusMetric::new(
             "wireguard_sent_bytes_total",
-            "counter",
+            MetricType::Counter,
             "Bytes sent to the peer",
         );
-        let pc_received_bytes_total = PrometheusCounter::new(
+        let pc_received_bytes_total = PrometheusMetric::new(
             "wireguard_received_bytes_total",
-            "counter",
+            MetricType::Counter,
             "Bytes received from the peer",
         );
-        let pc_latest_handshake = PrometheusCounter::new(
+        let pc_latest_handshake = PrometheusMetric::new(
             "wireguard_latest_handshake_seconds",
-            "gauge",
+            MetricType::Gauge,
             "Seconds from the last handshake",
         );
 
@@ -234,13 +234,12 @@ impl WireGuard {
                     }
 
                     s_sent_bytes_total
-                        .push(pc_sent_bytes_total.render_counter(Some(&attributes), ep.sent_bytes));
+                        .push(pc_sent_bytes_total.render_sample(Some(&attributes), ep.sent_bytes));
                     s_received_bytes_total.push(
-                        pc_received_bytes_total
-                            .render_counter(Some(&attributes), ep.received_bytes),
+                        pc_received_bytes_total.render_sample(Some(&attributes), ep.received_bytes),
                     );
                     s_latest_handshake.push(
-                        pc_latest_handshake.render_counter(Some(&attributes), ep.latest_handshake),
+                        pc_latest_handshake.render_sample(Some(&attributes), ep.latest_handshake),
                     );
                 }
             }
