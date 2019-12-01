@@ -132,7 +132,7 @@ impl WireGuard {
         split_allowed_ips: bool,
         export_remote_ip_and_port: bool,
     ) -> String {
-        debug!("WireGuard::render_with_names(pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called", pehm, split_allowed_ips,export_remote_ip_and_port);
+        debug!("WireGuard::render_with_names(self == {:?}, pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called", self, pehm, split_allowed_ips,export_remote_ip_and_port);
 
         // these are the exported counters
         let pc_sent_bytes_total = PrometheusCounter::new(
