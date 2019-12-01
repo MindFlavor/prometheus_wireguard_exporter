@@ -27,6 +27,8 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
     type Error = PeerEntryParseError;
 
     fn try_from(lines: &[&'a str]) -> Result<PeerEntry<'a>, Self::Error> {
+        debug!("PeerEntry::TryFrom called with lines == {:?}", lines);
+
         let mut public_key = "";
         let mut allowed_ips = "";
         let mut name = None;
@@ -54,16 +56,18 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
             let lines_owned: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
             Err(PeerEntryParseError::AllowedIPsEntryNotFound { lines: lines_owned })
         } else {
-            Ok(PeerEntry {
+            let pe = PeerEntry {
                 public_key,
                 allowed_ips,
                 name, // name can be None
-            })
+            };
+            debug!("PeerEntry::TryFrom returning PeerEntryHasMap == {:?}", pe);
+            Ok(pe)
         }
     }
 }
 
-pub(crate) type PeerEntryHashMap<'a> = (HashMap<&'a str, PeerEntry<'a>>);
+pub(crate) type PeerEntryHashMap<'a> = HashMap<&'a str, PeerEntry<'a>>;
 
 pub(crate) fn peer_entry_hashmap_try_from(
     txt: &str,
@@ -100,14 +104,14 @@ pub(crate) fn peer_entry_hashmap_try_from(
         v_blocks.push(cur_block);
     }
 
-    debug!("v_blocks == {:?}", v_blocks);
+    debug!("peer_entry_hashmap_try_from v_blocks == {:?}", v_blocks);
 
     for block in &v_blocks {
         let p: PeerEntry = PeerEntry::try_from(&block as &[&str])?;
         hm.insert(p.public_key, p);
     }
 
-    debug!("hm == {:?}", hm);
+    debug!("peer_entry_hashmap_try_from hm == {:?}", hm);
 
     Ok(hm)
 }
