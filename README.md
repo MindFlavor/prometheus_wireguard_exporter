@@ -47,7 +47,7 @@ Start the binary with `-h` to get the complete syntax. The parameters are:
 | Parameter | Mandatory | Valid values | Default | Description |
 | -- | -- | -- | -- | -- |
 | `-v` | no | <switch> | | Enable verbose mode.
-| `-p` | no | any valid ip address | 0.0.0.0 | Specify the service address. This is the address your Prometheus instance should point to.
+| `-l` | no | any valid ip address | 0.0.0.0 | Specify the service address. This is the address your Prometheus instance should point to.
 | `-p` | no | any valid port number | 9586 | Specify the service port. This is the port your Prometheus instance should point to.
 | `-n` | no | path to the wireguard configuration file | | This flag adds the *friendly_name* attribute to the exported entries. See [Friendly names](#friendly-names) for more details.
 | `-s` | no | <switch> | off | Enable the allowed ip + subnet split mode for the labels.
