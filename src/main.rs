@@ -18,7 +18,7 @@ mod wireguard_config;
 use wireguard_config::peer_entry_hashmap_try_from;
 extern crate prometheus_exporter_base;
 use prometheus_exporter_base::render_prometheus;
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::sync::Arc;
 
 fn wg_with_text(
@@ -156,11 +156,7 @@ async fn main() {
 
     let bind = matches.value_of("port").unwrap();
     let bind = u16::from_str_radix(&bind, 10).expect("port must be a valid number");
-    let ip = matches
-        .value_of("addr")
-        .unwrap()
-        .parse::<Ipv4Addr>()
-        .unwrap();
+    let ip = matches.value_of("addr").unwrap().parse::<IpAddr>().unwrap();
     let addr = (ip, bind).into();
 
     info!("starting exporter on http://{}/metrics", addr);
