@@ -23,13 +23,13 @@ use std::sync::Arc;
 
 fn wg_with_text(
     wg_config_str: &str,
-    wg_output_str: &str,
+    wg_output_stdout_str: &str,
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
     let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
     trace!("pehm == {:?}", pehm);
 
-    let wg = WireGuard::try_from(wg_output_str)?;
+    let wg = WireGuard::try_from(wg_output_stdout_str)?;
     Ok(wg.render_with_names(
         Some(&pehm),
         options.separate_allowed_ips,
@@ -61,30 +61,40 @@ async fn perform_request(
         .arg(&interface_str)
         .arg("dump")
         .output()?;
-    let output_str = String::from_utf8(output.stdout)?;
-    trace!("wg show output == {}", output_str);
+    let output_stdout_str = String::from_utf8(output.stdout)?;
+    trace!(
+        "wg show {} dump stdout == {}",
+        interface_str,
+        output_stdout_str
+    );
+    let output_stderr_str = String::from_utf8(output.stderr)?;
+    trace!(
+        "wg show {} dump stderr == {}",
+        interface_str,
+        output_stderr_str
+    );
 
     // the output of wg show is different if we use all or we specify an interface.
     // In the first case the first column will be the interface name. In the second case
     // the interface name will be omitted. We need to compensate for the skew somehow (one
     // column less in the second case). We solve this prepending the interface name in every
     // line so the output of the second case will be equal to the first case.
-    let output_str = if interface_str != "all" {
+    let output_stdout_str = if interface_str != "all" {
         debug!("injecting {} to the wg show output", interface_str);
         let mut result = String::new();
-        for s in output_str.lines() {
+        for s in output_stdout_str.lines() {
             result.push_str(&format!("{}\t{}\n", interface_str, s));
         }
         result
     } else {
-        output_str
+        output_stdout_str
     };
 
     if let Some(extract_names_config_file) = &options.extract_names_config_file {
         let wg_config_string = ::std::fs::read_to_string(extract_names_config_file)?;
-        wg_with_text(&wg_config_string as &str, &output_str, options)
+        wg_with_text(&wg_config_string as &str, &output_stdout_str, options)
     } else {
-        let wg = WireGuard::try_from(&output_str as &str)?;
+        let wg = WireGuard::try_from(&output_stdout_str as &str)?;
         Ok(wg.render_with_names(
             None,
             options.separate_allowed_ips,
