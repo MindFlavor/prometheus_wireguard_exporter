@@ -43,7 +43,7 @@ async fn perform_request(
     trace!("perform_request");
     debug!("options == {:?}", options);
 
-    let interface_str = match &options.inteface {
+    let interface_str = match &options.interface {
         Some(interface_str) => interface_str,
         None => "all",
     }
