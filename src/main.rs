@@ -1,7 +1,6 @@
 extern crate serde_json;
 #[macro_use]
 extern crate failure;
-use clap;
 use clap::{crate_authors, crate_name, crate_version, Arg};
 use hyper::{Body, Request};
 use log::{debug, info, trace};
@@ -42,8 +41,6 @@ async fn perform_request(
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
     trace!("perform_request");
-    // this is needed to satisfy the borrow checker
-    let options = options.clone();
     debug!("options == {:?}", options);
 
     //let interface = options.get_interface();

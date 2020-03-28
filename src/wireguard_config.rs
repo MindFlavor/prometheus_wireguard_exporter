@@ -50,10 +50,10 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
         if public_key == "" {
             // we return a owned String for ergonomics. This will allocate but it's ok since it's not supposed
             // to happen :)
-            let lines_owned: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
+            let lines_owned: Vec<String> = lines.iter().map(|line| (*line).to_string()).collect();
             Err(PeerEntryParseError::PublicKeyNotFound { lines: lines_owned })
         } else if allowed_ips == "" {
-            let lines_owned: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
+            let lines_owned: Vec<String> = lines.iter().map(|line| (*line).to_string()).collect();
             Err(PeerEntryParseError::AllowedIPsEntryNotFound { lines: lines_owned })
         } else {
             let pe = PeerEntry {
