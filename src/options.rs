@@ -8,34 +8,22 @@ pub(crate) struct Options {
 
 impl Options {
     pub fn from_claps(matches: &clap::ArgMatches<'_>) -> Options {
-        if let Some(e) = matches.value_of("extract_names_config_file") {
-            Options {
-                verbose: matches.is_present("verbose"),
-                separate_allowed_ips: matches.is_present("separate_allowed_ips"),
-                extract_names_config_file: Some(e.to_owned()),
-                export_remote_ip_and_port: matches.is_present("export_remote_ip_and_port"),
-            }
-        } else {
-            Options {
-                verbose: matches.is_present("verbose"),
-                separate_allowed_ips: matches.is_present("separate_allowed_ips"),
-                extract_names_config_file: None,
-                export_remote_ip_and_port: matches.is_present("export_remote_ip_and_port"),
-            }
+        Options {
+            verbose: matches.is_present("verbose"),
+            separate_allowed_ips: matches.is_present("separate_allowed_ips"),
+            extract_names_config_file: matches
+                .value_of("extract_names_config_file")
+                .map(|e| e.to_owned()),
+            export_remote_ip_and_port: matches.is_present("export_remote_ip_and_port"),
         }
     }
 
     pub fn get_interface(&self) -> Option<&str> {
-        if let Some(config_file) = &self.extract_names_config_file {
-            let path = std::path::Path::new(config_file);
-            if let Some(file_stem) = path.file_stem() {
-                file_stem.to_str()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        self.extract_names_config_file
+            .as_ref()
+            .map(|e| std::path::Path::new(e).file_stem().map(|r| r.to_str()))
+            .flatten()
+            .flatten()
     }
 }
 
