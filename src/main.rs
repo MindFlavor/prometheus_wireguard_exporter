@@ -1,7 +1,6 @@
 extern crate serde_json;
 #[macro_use]
 extern crate failure;
-use clap;
 use clap::{crate_authors, crate_name, crate_version, Arg};
 use hyper::{Body, Request};
 use log::{debug, info, trace};
@@ -42,13 +41,9 @@ async fn perform_request(
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
     trace!("perform_request");
-    // this is needed to satisfy the borrow checker
-    let options = options.clone();
     debug!("options == {:?}", options);
 
-    //let interface = options.get_interface();
-
-    let interface_str = match options.get_interface() {
+    let interface_str = match &options.interface {
         Some(interface_str) => interface_str,
         None => "all",
     }
@@ -144,6 +139,11 @@ async fn main() {
             Arg::with_name("extract_names_config_file")
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
+                .takes_value(true))
+        .arg(
+            Arg::with_name("interface")
+                .short("i")
+                .help("If set specifies the interface passed to the wg show command. In not specified, all will be passed.")
                 .takes_value(true))
         .get_matches();
 

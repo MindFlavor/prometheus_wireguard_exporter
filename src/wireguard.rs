@@ -198,9 +198,10 @@ impl WireGuard {
                             .collect();
 
                         for (idx, (ip, subnet)) in v_ip_and_subnet.iter().enumerate() {
-                            attributes_owned.push((format!("allowed_ip_{}", idx), ip.to_string()));
                             attributes_owned
-                                .push((format!("allowed_subnet_{}", idx), subnet.to_string()));
+                                .push((format!("allowed_ip_{}", idx), (*ip).to_string()));
+                            attributes_owned
+                                .push((format!("allowed_subnet_{}", idx), (*subnet).to_string()));
                         }
                         debug!(
                             "WireGuard::render_with_names attributes == {:?}",
