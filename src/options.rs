@@ -19,41 +19,9 @@ impl Options {
             export_remote_ip_and_port: matches.is_present("export_remote_ip_and_port"),
         }
     }
-
-    //pub fn get_interface(&self) -> Option<&str> {
-    //    self.extract_names_config_file
-    //        .as_ref()
-    //        .map(|e| std::path::Path::new(e).file_stem().map(|r| r.to_str()))
-    //        .flatten()
-    //        .flatten()
-    //}
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_interface_some() {
-        let options = Options {
-            verbose: true,
-            separate_allowed_ips: false,
-            extract_names_config_file: Some("/etc/wireguard/wg0.conf".to_owned()),
-            export_remote_ip_and_port: true,
-        };
-
-        assert_eq!(options.get_interface(), Some("wg0"));
-    }
-
-    #[test]
-    fn test_interface_none() {
-        let options = Options {
-            verbose: true,
-            separate_allowed_ips: false,
-            extract_names_config_file: None,
-            export_remote_ip_and_port: true,
-        };
-
-        assert_eq!(options.get_interface(), None);
-    }
 }
