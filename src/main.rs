@@ -40,11 +40,6 @@ async fn perform_request(
     _req: Request<Body>,
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
-    let interface_str = match &options.interfaces {
-        Some(interface_str) => &interface_str[0],
-        None => "all",
-    };
-
     let interfaces_to_handle = match &options.interfaces {
         Some(interfaces_str) => interfaces_str.clone(),
         None => vec!["all".to_owned()],
@@ -61,7 +56,7 @@ async fn perform_request(
         result.push_str(
             &perform_single_request(
                 &_req,
-                interface_str,
+                interface_to_handle,
                 extract_names_config_file,
                 options.clone(),
             )
@@ -170,12 +165,14 @@ async fn main() {
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config files for peer names (must be in [Peer] definition and be a comment)")
                 .multiple(true)
+                .number_of_values(1)
                 .takes_value(true))
         .arg(
             Arg::with_name("interfaces")
                 .short("i")
                 .help("If set specifies the interface passed to the wg show command. It is relative to the same position config_file. In not specified, all will be passed.")
                 .multiple(true)
+                .number_of_values(1)
                 .takes_value(true))
         .get_matches();
 
