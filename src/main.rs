@@ -40,16 +40,46 @@ async fn perform_request(
     _req: Request<Body>,
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
-    trace!("perform_request");
-    debug!("options == {:?}", options);
-
-    let interface_str = match &options.interface {
-        Some(interface_str) => interface_str,
+    let interface_str = match &options.interfaces {
+        Some(interface_str) => &interface_str[0],
         None => "all",
-    }
-    .to_owned();
+    };
 
-    debug!("using inteface_str {}", interface_str);
+    let interfaces_to_handle = match &options.interfaces {
+        Some(interfaces_str) => interfaces_str.clone(),
+        None => vec!["all".to_owned()],
+    };
+
+    let mut result = String::new();
+
+    for (pos, interface_to_handle) in interfaces_to_handle.iter().enumerate() {
+        let extract_names_config_file = match &options.extract_names_config_files {
+            Some(extract_names_config_files) => Some(&extract_names_config_files[pos] as &str),
+            None => None,
+        };
+
+        result.push_str(
+            &perform_single_request(
+                &_req,
+                interface_str,
+                extract_names_config_file,
+                options.clone(),
+            )
+            .await?,
+        );
+    }
+
+    Ok(result)
+}
+
+async fn perform_single_request(
+    _req: &Request<Body>,
+    interface_str: &str,
+    extract_names_config_file: Option<&str>,
+    options: Arc<Options>,
+) -> Result<String, failure::Error> {
+    trace!("perform_request");
+    debug!("inteface_str == {}", interface_str);
 
     let output = Command::new("wg")
         .arg("show")
@@ -85,8 +115,8 @@ async fn perform_request(
         output_stdout_str
     };
 
-    if let Some(extract_names_config_file) = &options.extract_names_config_file {
-        let wg_config_string = ::std::fs::read_to_string(extract_names_config_file)?;
+    if let Some(extract_names_config_file) = extract_names_config_file {
+        let wg_config_string = ::std::fs::read_to_string(&extract_names_config_file)?;
         wg_with_text(&wg_config_string as &str, &output_stdout_str, options)
     } else {
         let wg = WireGuard::try_from(&output_stdout_str as &str)?;
@@ -136,14 +166,16 @@ async fn main() {
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("extract_names_config_file")
+            Arg::with_name("extract_names_config_files")
                 .short("n")
-                .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
+                .help("If set, the exporter will look in the specified WireGuard config files for peer names (must be in [Peer] definition and be a comment)")
+                .multiple(true)
                 .takes_value(true))
         .arg(
-            Arg::with_name("interface")
+            Arg::with_name("interfaces")
                 .short("i")
-                .help("If set specifies the interface passed to the wg show command. In not specified, all will be passed.")
+                .help("If set specifies the interface passed to the wg show command. It is relative to the same position config_file. In not specified, all will be passed.")
+                .multiple(true)
                 .takes_value(true))
         .get_matches();
 
