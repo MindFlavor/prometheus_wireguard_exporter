@@ -48,16 +48,11 @@ async fn perform_request(
     let mut result = String::new();
 
     for (pos, interface_to_handle) in interfaces_to_handle.iter().enumerate() {
-        let extract_names_config_file = match &options.extract_names_config_files {
-            Some(extract_names_config_files) => Some(&extract_names_config_files[pos] as &str),
-            None => None,
-        };
-
         result.push_str(
             &perform_single_request(
                 &_req,
                 interface_to_handle,
-                extract_names_config_file,
+                &options.extract_names_config_file,
                 options.clone(),
             )
             .await?,
@@ -70,7 +65,7 @@ async fn perform_request(
 async fn perform_single_request(
     _req: &Request<Body>,
     interface_str: &str,
-    extract_names_config_file: Option<&str>,
+    extract_names_config_file: &Option<String>,
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
     trace!("perform_request");
@@ -163,8 +158,8 @@ async fn main() {
         .arg(
             Arg::with_name("extract_names_config_files")
                 .short("n")
-                .help("If set, the exporter will look in the specified WireGuard config files for peer names (must be in [Peer] definition and be a comment)")
-                .multiple(true)
+                .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
+                .multiple(false)
                 .number_of_values(1)
                 .takes_value(true))
         .arg(
