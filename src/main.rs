@@ -23,7 +23,7 @@ use std::sync::Arc;
 fn wg_with_text(
     wg_config_str: &str,
     wg_output_stdout_str: &str,
-    options: Arc<Options>,
+    options: &Arc<Options>,
 ) -> Result<String, failure::Error> {
     let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
     trace!("pehm == {:?}", pehm);
@@ -46,76 +46,65 @@ async fn perform_request(
     };
 
     let mut result = String::new();
+    let wg_config_string =
+        if let Some(extract_names_config_file) = &options.extract_names_config_file {
+            Some(::std::fs::read_to_string(
+                &extract_names_config_file as &str,
+            )?)
+        } else {
+            None
+        };
 
     for (pos, interface_to_handle) in interfaces_to_handle.iter().enumerate() {
-        result.push_str(
-            &perform_single_request(
-                &_req,
-                interface_to_handle,
-                &options.extract_names_config_file,
-                options.clone(),
-            )
-            .await?,
+        let output = Command::new("wg")
+            .arg("show")
+            .arg(&interface_to_handle)
+            .arg("dump")
+            .output()?;
+        let output_stdout_str = String::from_utf8(output.stdout)?;
+        trace!(
+            "wg show {} dump stdout == {}",
+            interface_to_handle,
+            output_stdout_str
         );
+        let output_stderr_str = String::from_utf8(output.stderr)?;
+        trace!(
+            "wg show {} dump stderr == {}",
+            interface_to_handle,
+            output_stderr_str
+        );
+
+        // the output of wg show is different if we use all or we specify an interface.
+        // In the first case the first column will be the interface name. In the second case
+        // the interface name will be omitted. We need to compensate for the skew somehow (one
+        // column less in the second case). We solve this prepending the interface name in every
+        // line so the output of the second case will be equal to the first case.
+        let output_stdout_str = if interface_to_handle != "all" {
+            debug!("injecting {} to the wg show output", interface_to_handle);
+            let mut result = String::new();
+            for s in output_stdout_str.lines() {
+                result.push_str(&format!("{}\t{}\n", interface_to_handle, s));
+            }
+            result
+        } else {
+            output_stdout_str
+        };
+
+        let ret = if let Some(wg_config_string) = &wg_config_string {
+            wg_with_text(&wg_config_string as &str, &output_stdout_str, &options)
+        } else {
+            let wg = WireGuard::try_from(&output_stdout_str as &str)?;
+            Ok(wg.render_with_names(
+                None,
+                options.separate_allowed_ips,
+                options.export_remote_ip_and_port,
+            ))
+        }?;
+
+        result.push_str(&ret);
     }
 
     Ok(result)
-}
-
-async fn perform_single_request(
-    _req: &Request<Body>,
-    interface_str: &str,
-    extract_names_config_file: &Option<String>,
-    options: Arc<Options>,
-) -> Result<String, failure::Error> {
-    trace!("perform_request");
-    debug!("inteface_str == {}", interface_str);
-
-    let output = Command::new("wg")
-        .arg("show")
-        .arg(&interface_str)
-        .arg("dump")
-        .output()?;
-    let output_stdout_str = String::from_utf8(output.stdout)?;
-    trace!(
-        "wg show {} dump stdout == {}",
-        interface_str,
-        output_stdout_str
-    );
-    let output_stderr_str = String::from_utf8(output.stderr)?;
-    trace!(
-        "wg show {} dump stderr == {}",
-        interface_str,
-        output_stderr_str
-    );
-
-    // the output of wg show is different if we use all or we specify an interface.
-    // In the first case the first column will be the interface name. In the second case
-    // the interface name will be omitted. We need to compensate for the skew somehow (one
-    // column less in the second case). We solve this prepending the interface name in every
-    // line so the output of the second case will be equal to the first case.
-    let output_stdout_str = if interface_str != "all" {
-        debug!("injecting {} to the wg show output", interface_str);
-        let mut result = String::new();
-        for s in output_stdout_str.lines() {
-            result.push_str(&format!("{}\t{}\n", interface_str, s));
-        }
-        result
-    } else {
-        output_stdout_str
-    };
-
-    if let Some(extract_names_config_file) = extract_names_config_file {
-        let wg_config_string = ::std::fs::read_to_string(&extract_names_config_file)?;
-        wg_with_text(&wg_config_string as &str, &output_stdout_str, options)
-    } else {
-        let wg = WireGuard::try_from(&output_stdout_str as &str)?;
-        Ok(wg.render_with_names(
-            None,
-            options.separate_allowed_ips,
-            options.export_remote_ip_and_port,
-        ))
-    }
 }
 
 #[tokio::main]
