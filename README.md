@@ -10,6 +10,8 @@
 [![Build Status](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter.svg?branch=master)](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter)
 [![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.3.1.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.3.1.svg)
 
+[![Actions Status](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions)
+
 ## Intro
 
 A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rust. This tool exports the `wg show all dump` (or `wg show <interface> dump` if you specify a config file) results in a format that [Prometheus](https://prometheus.io/) can understand. The exporter is very light on your server resources, both in terms of memory and CPU usage.
