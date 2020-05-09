@@ -20,22 +20,6 @@ use prometheus_exporter_base::render_prometheus;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-fn wg_with_text(
-    wg_config_str: &str,
-    wg_output_stdout_str: &str,
-    options: &Arc<Options>,
-) -> Result<String, failure::Error> {
-    let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
-    trace!("pehm == {:?}", pehm);
-
-    let wg = WireGuard::try_from(wg_output_stdout_str)?;
-    Ok(wg.render_with_names(
-        Some(&pehm),
-        options.separate_allowed_ips,
-        options.export_remote_ip_and_port,
-    ))
-}
-
 async fn perform_request(
     _req: Request<Body>,
     options: Arc<Options>,
@@ -46,7 +30,8 @@ async fn perform_request(
     };
 
     let mut result = String::new();
-    let wg_config_string =
+
+    let peer_entry_contents =
         if let Some(extract_names_config_file) = &options.extract_names_config_file {
             Some(::std::fs::read_to_string(
                 &extract_names_config_file as &str,
@@ -54,6 +39,12 @@ async fn perform_request(
         } else {
             None
         };
+
+    let peer_entry_hashmap = if let Some(peer_entry_contents) = &peer_entry_contents {
+        Some(peer_entry_hashmap_try_from(peer_entry_contents)?)
+    } else {
+        None
+    };
 
     for (pos, interface_to_handle) in interfaces_to_handle.iter().enumerate() {
         let output = Command::new("wg")
@@ -90,17 +81,13 @@ async fn perform_request(
             output_stdout_str
         };
 
-        let ret = if let Some(wg_config_string) = &wg_config_string {
-            wg_with_text(&wg_config_string as &str, &output_stdout_str, &options)
-        } else {
-            let wg = WireGuard::try_from(&output_stdout_str as &str)?;
-            Ok(wg.render_with_names(
-                None,
-                options.separate_allowed_ips,
-                options.export_remote_ip_and_port,
-            ))
-        }?;
+        let wg = WireGuard::try_from(&output_stdout_str as &str)?;
 
+        let ret = wg.render_with_names(
+            peer_entry_hashmap.as_ref(),
+            options.separate_allowed_ips,
+            options.export_remote_ip_and_port,
+        );
         result.push_str(&ret);
     }
 
