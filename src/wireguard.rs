@@ -126,6 +126,18 @@ impl TryFrom<&str> for WireGuard {
 }
 
 impl WireGuard {
+    pub fn merge(&mut self, merge_from: &WireGuard) {
+        for (interface_name, endpoints_to_merge) in merge_from.interfaces.iter() {
+            if let Some(endpoints) = self.interfaces.get_mut(&interface_name as &str) {
+                endpoints.extend_from_slice(&endpoints_to_merge);
+            } else {
+                let mut new_vec = Vec::new();
+                new_vec.extend_from_slice(&endpoints_to_merge);
+                self.interfaces.insert(interface_name.to_owned(), new_vec);
+            }
+        }
+    }
+
     pub(crate) fn render_with_names(
         &self,
         pehm: Option<&PeerEntryHashMap>,
