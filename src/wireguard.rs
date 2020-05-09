@@ -177,7 +177,21 @@ impl WireGuard {
         let mut s_latest_handshake = Vec::new();
         s_latest_handshake.push(pc_latest_handshake.render_header());
 
-        for (interface, endpoints) in self.interfaces.iter() {
+        // Here we make sure we process the interfaces in the
+        // lexicographical order.
+        // This is not stricly necessary but it ensures
+        // a consistent output between executions (the iter() function
+        // of HashMap does not guarantee any ordering).
+        // Prometheus does not care about ordering but humans do so
+        // we'll sort it beforehand. Being references the cost
+        // should be negligible anyway.
+        let mut interfaces_sorted: Vec<(&String, &Vec<Endpoint>)> = self
+            .interfaces
+            .iter()
+            .collect::<Vec<(&String, &Vec<Endpoint>)>>();
+        interfaces_sorted.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
+
+        for (interface, endpoints) in interfaces_sorted.into_iter() {
             for endpoint in endpoints {
                 // only show remote endpoints
                 if let Endpoint::Remote(ep) = endpoint {
