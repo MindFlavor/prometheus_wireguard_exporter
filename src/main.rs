@@ -20,81 +20,83 @@ use prometheus_exporter_base::render_prometheus;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-fn wg_with_text(
-    wg_config_str: &str,
-    wg_output_stdout_str: &str,
-    options: Arc<Options>,
-) -> Result<String, failure::Error> {
-    let pehm = peer_entry_hashmap_try_from(wg_config_str)?;
-    trace!("pehm == {:?}", pehm);
-
-    let wg = WireGuard::try_from(wg_output_stdout_str)?;
-    Ok(wg.render_with_names(
-        Some(&pehm),
-        options.separate_allowed_ips,
-        options.export_remote_ip_and_port,
-    ))
-}
-
 async fn perform_request(
     _req: Request<Body>,
     options: Arc<Options>,
 ) -> Result<String, failure::Error> {
-    trace!("perform_request");
-    debug!("options == {:?}", options);
-
-    let interface_str = match &options.interface {
-        Some(interface_str) => interface_str,
-        None => "all",
-    }
-    .to_owned();
-
-    debug!("using inteface_str {}", interface_str);
-
-    let output = Command::new("wg")
-        .arg("show")
-        .arg(&interface_str)
-        .arg("dump")
-        .output()?;
-    let output_stdout_str = String::from_utf8(output.stdout)?;
-    trace!(
-        "wg show {} dump stdout == {}",
-        interface_str,
-        output_stdout_str
-    );
-    let output_stderr_str = String::from_utf8(output.stderr)?;
-    trace!(
-        "wg show {} dump stderr == {}",
-        interface_str,
-        output_stderr_str
-    );
-
-    // the output of wg show is different if we use all or we specify an interface.
-    // In the first case the first column will be the interface name. In the second case
-    // the interface name will be omitted. We need to compensate for the skew somehow (one
-    // column less in the second case). We solve this prepending the interface name in every
-    // line so the output of the second case will be equal to the first case.
-    let output_stdout_str = if interface_str != "all" {
-        debug!("injecting {} to the wg show output", interface_str);
-        let mut result = String::new();
-        for s in output_stdout_str.lines() {
-            result.push_str(&format!("{}\t{}\n", interface_str, s));
-        }
-        result
-    } else {
-        output_stdout_str
+    let interfaces_to_handle = match &options.interfaces {
+        Some(interfaces_str) => interfaces_str.clone(),
+        None => vec!["all".to_owned()],
     };
 
-    if let Some(extract_names_config_file) = &options.extract_names_config_file {
-        let wg_config_string = ::std::fs::read_to_string(extract_names_config_file)?;
-        wg_with_text(&wg_config_string as &str, &output_stdout_str, options)
+    let peer_entry_contents =
+        if let Some(extract_names_config_file) = &options.extract_names_config_file {
+            Some(::std::fs::read_to_string(
+                &extract_names_config_file as &str,
+            )?)
+        } else {
+            None
+        };
+
+    let peer_entry_hashmap = if let Some(peer_entry_contents) = &peer_entry_contents {
+        Some(peer_entry_hashmap_try_from(peer_entry_contents)?)
     } else {
-        let wg = WireGuard::try_from(&output_stdout_str as &str)?;
-        Ok(wg.render_with_names(
-            None,
+        None
+    };
+
+    let mut wg_accumulator: Option<WireGuard> = None;
+
+    for interface_to_handle in interfaces_to_handle {
+        let output = Command::new("wg")
+            .arg("show")
+            .arg(&interface_to_handle)
+            .arg("dump")
+            .output()?;
+        let output_stdout_str = String::from_utf8(output.stdout)?;
+        trace!(
+            "wg show {} dump stdout == {}",
+            interface_to_handle,
+            output_stdout_str
+        );
+        let output_stderr_str = String::from_utf8(output.stderr)?;
+        trace!(
+            "wg show {} dump stderr == {}",
+            interface_to_handle,
+            output_stderr_str
+        );
+
+        // the output of wg show is different if we use all or we specify an interface.
+        // In the first case the first column will be the interface name. In the second case
+        // the interface name will be omitted. We need to compensate for the skew somehow (one
+        // column less in the second case). We solve this prepending the interface name in every
+        // line so the output of the second case will be equal to the first case.
+        let output_stdout_str = if interface_to_handle != "all" {
+            debug!("injecting {} to the wg show output", interface_to_handle);
+            let mut result = String::new();
+            for s in output_stdout_str.lines() {
+                result.push_str(&format!("{}\t{}\n", interface_to_handle, s));
+            }
+            result
+        } else {
+            output_stdout_str
+        };
+
+        if let Some(wg_accumulator) = &mut wg_accumulator {
+            let wg = WireGuard::try_from(&output_stdout_str as &str)?;
+            wg_accumulator.merge(&wg);
+        } else {
+            wg_accumulator = Some(WireGuard::try_from(&output_stdout_str as &str)?);
+        };
+    }
+
+    if let Some(wg_accumulator) = wg_accumulator {
+        Ok(wg_accumulator.render_with_names(
+            peer_entry_hashmap.as_ref(),
             options.separate_allowed_ips,
             options.export_remote_ip_and_port,
         ))
+    } else {
+        panic!();
     }
 }
 
@@ -136,14 +138,18 @@ async fn main() {
                 .takes_value(false),
         )
         .arg(
-            Arg::with_name("extract_names_config_file")
+            Arg::with_name("extract_names_config_files")
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
+                .multiple(false)
+                .number_of_values(1)
                 .takes_value(true))
         .arg(
-            Arg::with_name("interface")
+            Arg::with_name("interfaces")
                 .short("i")
-                .help("If set specifies the interface passed to the wg show command. In not specified, all will be passed.")
+                .help("If set specifies the interface passed to the wg show command. It is relative to the same position config_file. In not specified, all will be passed.")
+                .multiple(true)
+                .number_of_values(1)
                 .takes_value(true))
         .get_matches();
 
