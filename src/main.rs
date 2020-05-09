@@ -29,8 +29,6 @@ async fn perform_request(
         None => vec!["all".to_owned()],
     };
 
-    let mut result = String::new();
-
     let peer_entry_contents =
         if let Some(extract_names_config_file) = &options.extract_names_config_file {
             Some(::std::fs::read_to_string(
@@ -46,7 +44,9 @@ async fn perform_request(
         None
     };
 
-    for (pos, interface_to_handle) in interfaces_to_handle.iter().enumerate() {
+    let mut wg_accumulator: Option<WireGuard> = None;
+
+    for interface_to_handle in interfaces_to_handle {
         let output = Command::new("wg")
             .arg("show")
             .arg(&interface_to_handle)
@@ -81,17 +81,23 @@ async fn perform_request(
             output_stdout_str
         };
 
-        let wg = WireGuard::try_from(&output_stdout_str as &str)?;
+        if let Some(wg_accumulator) = &mut wg_accumulator {
+            let wg = WireGuard::try_from(&output_stdout_str as &str)?;
+            wg_accumulator.merge(&wg);
+        } else {
+            wg_accumulator = Some(WireGuard::try_from(&output_stdout_str as &str)?);
+        };
+    }
 
-        let ret = wg.render_with_names(
+    if let Some(wg_accumulator) = wg_accumulator {
+        Ok(wg_accumulator.render_with_names(
             peer_entry_hashmap.as_ref(),
             options.separate_allowed_ips,
             options.export_remote_ip_and_port,
-        );
-        result.push_str(&ret);
+        ))
+    } else {
+        panic!();
     }
-
-    Ok(result)
 }
 
 #[tokio::main]
