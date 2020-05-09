@@ -49,7 +49,7 @@ cargo install prometheus_wireguard_exporter
 Start the binary with `-h` to get the complete syntax. The parameters are:
 
 | Parameter | Mandatory | Valid values | Default | Accepts multiple occurrences? | Description |
-| -- | -- | -- | -- | -- |
+| -- | -- | -- | -- | -- | -- |
 | `-v` | no | <switch> | | No | Enable verbose mode.
 | `-l` | no | any valid ip address | 0.0.0.0 | No | Specify the service address. This is the address your Prometheus instance should point to.
 | `-p` | no | any valid port number | 9586 | No | Specify the service port. This is the port your Prometheus instance should point to.
