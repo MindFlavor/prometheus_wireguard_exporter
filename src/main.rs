@@ -168,6 +168,11 @@ async fn main() {
     }
     env_logger::init();
 
+    info!(
+        "{} v{} starting...",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
     info!("using options: {:?}", options);
 
     let bind = matches.value_of("port").unwrap();
