@@ -34,9 +34,11 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
         let mut name = None;
 
         for line in lines {
-            if line.starts_with("PublicKey") {
+            let line_lowercase = line.to_lowercase();
+
+            if line_lowercase.starts_with("publickey") {
                 public_key = after_char(line, '=').trim();
-            } else if line.starts_with("AllowedIPs") {
+            } else if line_lowercase.starts_with("allowedips") {
                 allowed_ips = after_char(line, '=').trim();
             } else if line.starts_with('#') {
                 // since the pound sign is 1 byte the below slice will work
