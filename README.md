@@ -7,10 +7,8 @@
 [![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.3.2)
 [![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.3.2)
 
-[![Build Status](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter.svg?branch=master)](https://travis-ci.org/MindFlavor/prometheus_wireguard_exporter)
+[![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
 [![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.3.2.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.3.2.svg)
-
-[![Actions Status](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions)
 
 ## Intro
 
