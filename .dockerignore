@@ -2,7 +2,9 @@
 .github
 extra
 _config.yml
+.dockerignore
 .gitignore
+Dockerfile
 example.json
 LICENSE
 README.md
