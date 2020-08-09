@@ -29,6 +29,15 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 * You need [Rust](https://www.rust-lang.org/) to compile this code. Simply follow the instructions on Rust's website to install the toolchain. If you get weird errors while compiling please try and update your Rust version first (I have developed it on `rustc 1.42.0 (b8cedc004 2020-03-09)`).
 * You need [WireGuard](https://www.wireguard.com) *and* the `wg` CLI in the path. The tool will call `wg show <interface(s)>|all dump` and of course will fail if the `wg` executable is not found. If you want I can add the option of specifying the `wg` path in the command line, just open an issue for it.
 
+Alternatively, as long as you have Wireguard on your host kernel with some Wireguard interfaces running, you can use Docker. For example:
+
+```sh
+docker build -t prometheusWireguardExporter https://github.com/mindflavor/prometheus_wireguard_exporter
+docker run -it --rm --init --net=host --cap-add=NET_ADMIN prometheusWireguardExporter
+# Check it's up
+docker run -it --rm alpine:3.12 wget -qO- http://localhost:9586/metrics
+```
+
 ## Compilation
 
 To compile the latest master version:
