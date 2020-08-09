@@ -24,7 +24,5 @@ RUN cargo install --target ${ARCH}-unknown-linux-musl --path .
 FROM alpine:${ALPINE_VERSION}
 EXPOSE 9586/tcp
 RUN apk add --update -q --no-cache wireguard-tools-wg
-COPY --from=build --chown=1000 /usr/local/cargo/bin/prometheus_wireguard_exporter /usr/local/bin/prometheus_wireguard_exporter
+COPY --from=build /usr/local/cargo/bin/prometheus_wireguard_exporter /usr/local/bin/prometheus_wireguard_exporter
 ENTRYPOINT [ "prometheus_wireguard_exporter" ]
-CMD [ "-h" ]
-USER 1000
