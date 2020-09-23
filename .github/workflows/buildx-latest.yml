@@ -1,7 +1,7 @@
 name: Buildx latest
 on:
   release:
-    types: [published]
+    branches: [master]
     paths-ignore:
       - .github/workflows/build.yml
       - .github/workflows/buildx-branch.yml
