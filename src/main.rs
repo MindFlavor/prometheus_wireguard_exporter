@@ -136,6 +136,12 @@ async fn main() {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("prepend_sudo")
+                .short("a")
+                .help("Prepend sudo to the wg show commands")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("separate_allowed_ips")
                 .short("s")
                 .help("separate allowed ips and ports")
