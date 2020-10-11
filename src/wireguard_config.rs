@@ -23,6 +23,21 @@ fn after_char(s: &str, c_split: char) -> &str {
     s
 }
 
+fn from_pound_line_to_key_value(line: &str) -> Option<(&str, &str)> {
+    // since the pound sign is 1 byte the below slice will work
+    let line = &line[1..];
+    let equals_pos = line.find('=');
+    if let Some(equals_pos) = equals_pos {
+        // we should trim the key
+        let key = &line[..equals_pos].trim();
+        // we should trim the value as well? this can be debated
+        let value = &line[equals_pos + 1..].trim();
+        Some((key, value))
+    } else {
+        None
+    }
+}
+
 impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
     type Error = PeerEntryParseError;
 
@@ -40,9 +55,16 @@ impl<'a> TryFrom<&[&'a str]> for PeerEntry<'a> {
                 public_key = after_char(line, '=').trim();
             } else if line_lowercase.starts_with("allowedips") {
                 allowed_ips = after_char(line, '=').trim();
-            } else if line.starts_with('#') {
-                // since the pound sign is 1 byte the below slice will work
-                name = Some(line[1..].trim());
+            } else if line.trim().starts_with('#') {
+                if let Some((key, value)) = from_pound_line_to_key_value(line) {
+                    // if it's a supported key, let' map it
+                    match key {
+                        "friendly_name" => {
+                            name = Some(value);
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
 
@@ -129,17 +151,22 @@ PrivateKey = my_super_secret_private_key
 # PostDown = iptables -t nat -D POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
 
 [Peer]
-# OnePlus 6T
+# This is a comment
+# friendly_name=OnePlus 6T
+# This is a comment
+# This is a comment
+# This is a comment
+# This is a comment
 PublicKey = 2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=
 AllowedIPs = 10.70.0.2/32
 
 [Peer]
-# varch.local (laptop)
+# friendly_name=varch.local (laptop)
 PublicKey = qnoxQoQI8KKMupLnSSureORV0wMmH7JryZNsmGVISzU=
 AllowedIPs = 10.70.0.3/32
 
 [Peer]
-# cantarch
+# friendly_name=cantarch
 PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 AllowedIPs = 10.70.0.4/32
 
@@ -149,12 +176,14 @@ PublicKey = MdVOIPKt9K2MPj/sO2NlWQbOnFJ6L/qX80mmhQwsUlA=
 AllowedIPs = 10.70.0.50/32
 
 [Peer]
-# frcognowin10
+# This is a comment
+#               friendly_name       =               frcognowin10
+# This is something
 PublicKey = lqYcojJMsIZXMUw1heAFbQHBoKjCEaeo7M1WXDh/KWc=
 AllowedIPs = 10.70.0.40/32
 
 [Peer]
-# OnePlus 5T
+#friendly_name = OnePlus 5T
 PublicKey = 928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=
 AllowedIPs = 10.70.0.80/32
 ";
@@ -166,16 +195,16 @@ PrivateKey = my_super_secret_private_key
 # PostDown = iptables -t nat -D POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
 
 [Peer]
-# OnePlus 6T
+# friendly_name = OnePlus 6T
 PublicKey = 2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=
 AllowedIPs = 10.70.0.2/32
 
 [Peer]
-# varch.local (laptop)
+# friendly_name = varch.local (laptop)
 AllowedIPs = 10.70.0.3/32
 
 [Peer]
-# cantarch
+#friendly_name= cantarch
 PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 AllowedIPs = 10.70.0.4/32
 ";
@@ -187,19 +216,45 @@ PrivateKey = my_super_secret_private_key
 # PostDown = iptables -t nat -D POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
 
 [Peer]
-# OnePlus 6T
+# friendly_name=OnePlus 6T
 PublicKey = 2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=
 AllowedIPs = 10.70.0.2/32
 
 [Peer]
-# varch.local (laptop)
+# friendly_name=varch.local (laptop)
 AllowedIPs = 10.70.0.3/32
 PublicKey = 6S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=
 
 [Peer]
-# cantarch
+# friendly_name=cantarch
 PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 ";
+
+    #[test]
+    fn test_from_pound_line_to_key_value() {
+        let a = from_pound_line_to_key_value("# ignore");
+        assert_eq!(None, a);
+
+        let a = from_pound_line_to_key_value("#           soooo much space           ");
+        assert_eq!(None, a);
+
+        let a = from_pound_line_to_key_value(
+            "#           test               = This can be tricky           ",
+        );
+        let a = a.expect("this should have been Some!");
+        assert_eq!(a.0, "test");
+        assert_eq!(a.1, "This can be tricky");
+
+        let a = from_pound_line_to_key_value("#           nasty               =");
+        let a = a.expect("this should have been Some!");
+        assert_eq!(a.0, "nasty");
+        assert_eq!(a.1, "");
+
+        let a = from_pound_line_to_key_value("#           nasty 2               =               ");
+        let a = a.expect("this should have been Some!");
+        assert_eq!(a.0, "nasty 2");
+        assert_eq!(a.1, "");
+    }
 
     #[test]
     fn test_parse_ok() {
@@ -208,8 +263,28 @@ PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
     }
 
     #[test]
+    fn test_parse_friendly_name() {
+        let a: PeerEntryHashMap = peer_entry_hashmap_try_from(TEXT).unwrap();
+        let entry = a.get("2S7mA0vEMethCNQrJpJKE81/JmhgtB+tHHLYQhgM6kk=");
+        let entry = entry.expect("this should have been Some!");
+        assert_eq!(Some("OnePlus 6T"), entry.name);
+
+        let entry = a.get("lqYcojJMsIZXMUw1heAFbQHBoKjCEaeo7M1WXDh/KWc=");
+        let entry = entry.expect("this should have been Some!");
+        assert_eq!(Some("frcognowin10"), entry.name);
+
+        let entry = a.get("928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=");
+        let entry = entry.expect("this should have been Some!");
+        assert_eq!(Some("OnePlus 5T"), entry.name);
+
+        let entry = a.get("MdVOIPKt9K2MPj/sO2NlWQbOnFJ6L/qX80mmhQwsUlA=");
+        let entry = entry.expect("this should have been Some!");
+        assert_eq!(None, entry.name);
+    }
+
+    #[test]
     #[should_panic(
-        expected = "PublicKeyNotFound { lines: [\"# varch.local (laptop)\", \"AllowedIPs = 10.70.0.3/32\"] }"
+        expected = "PublicKeyNotFound { lines: [\"# friendly_name = varch.local (laptop)\", \"AllowedIPs = 10.70.0.3/32\"] }"
     )]
     fn test_parse_no_public_key() {
         let _: PeerEntryHashMap = peer_entry_hashmap_try_from(TEXT_NOPK).unwrap();
@@ -217,7 +292,7 @@ PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 
     #[test]
     #[should_panic(
-        expected = "AllowedIPsEntryNotFound { lines: [\"# cantarch\", \"PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=\"] }"
+        expected = "AllowedIPsEntryNotFound { lines: [\"# friendly_name=cantarch\", \"PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=\"] }"
     )]
     fn test_parse_no_allowed_ips() {
         let _: PeerEntryHashMap = peer_entry_hashmap_try_from(TEXT_AIP).unwrap();

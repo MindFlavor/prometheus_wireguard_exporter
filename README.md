@@ -4,11 +4,11 @@
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
-[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.3.2)
-[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.3.2)
+[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.4.0)
+[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.4.0)
 
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.3.2.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.3.2.svg)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.0.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.0.svg)
 
 ## Intro
 
@@ -18,7 +18,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
-* From release [3.3.2](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.3.2) the exporter parses the peer file in a case-insensitive manner.
+* **BREAKING** From release [3.4.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.4.0) the exporter requires you to specify the friendly names in a specific format (only if you want to use them of course). This allows you to use arbitrary comments in the file while keeping the friendly name functionality. Thank you [Miloš Bunčić](https://github.com/psyhomb) for this. This also paves the way for future metadata. In order to migrate you can use this sed command: `sed -i  's/#/# friendly_name=/' peers.conf`. Please make sure to do a backup before using it!
 * From release [3.3.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.3.1) the exporter accepts multiple interfaces in the command line options. Just pass the `-i` parameter multiple times. Note the not specifying the interface is equivalent to specifying every one of them (the exporter will pass the `all` parameter to `wg show` command).
 * **BREAKING** Starting from release [3.3.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.3.0) the exporter allows you to specify a different interface from the file name. Previously if you specified the file name (the `-n` flag) the program would infer the interface name from the file name. Now the two items are decoupled: you need to specify the file name (with `-n`) and the interface name (with `-i`) separately. Thank you [Vincent Debergue](https://github.com/vdebergue) for helping with this (see issue [#22](https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/22)). Upgrading from [3.2.4](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.2.4): Please note that the `-n` flag no longer infer automatically the interface name from the file name. We now have the `-i` parameter for that. In order to keep the previous behaviour (if you use the `-n` flag) please add the `-i` flag to the command line arguments as well. For example, if you had `prometheus_wireguard_exporter -n /etc/wireguard/wg0.conf` you must specify `prometheus_wireguard_exporter -n /etc/wireguard/wg0.conf -i wg0` to keep the same behaviour.
 * From release [3.0.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.0.0) the exporter allows two label modes: one is to dump every allowed ip in a single label (called `allowed_ips`) along with their subnets. The second one is to create a pair of labels for each allowed ip/subnet pair (called `allowed_ip_0`/`allowed_subnet_0`, `allowed_ip_1`/`allowed_subnet_1` and so on for every allowed ip). The default if the single label mode but you can enable the second mode by specifying the `-s` switch at startup. Thank you [Toon Schoenmakers](https://github.com/schoentoon) for this solution (see issue [#8](https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/8)).
@@ -136,31 +136,34 @@ wireguard_latest_handshake_seconds{interface="wg0",public_key="928vO9Lf4+Mo84cWu
 wireguard_latest_handshake_seconds{interface="wg0",public_key="wTjv6hS6fKfNK+SzOLo7O6BQjEb6AD1TN9GjwZ08IwA=",allowed_ips="10.70.0.5/32",friendly_name="folioarch"} 0
 ```
 
-In order for this to work, you need to add comments to your wireguard configuration file (below the `[Peer]` definition). The comment will be interpreted as `friendly_name` and added to the entry exported to Prometheus. Note that this is not a standard but, since it's a comment, will not interfere with WireGuard in any way. For example this is how you edit your WireGuard configuration file:
+In order for this to work, you need to add the `friendly_name` key value to the comments preceding a peer a specific metadata (in your wireguard configuration file). See below the `[Peer]` definition for an example. 
+The tag is called `friendly_name` and it will be added to the entry exported to Prometheus. Note that this is not a standard but, since it's a comment, will not interfere with WireGuard in any way. For example this is how you edit your WireGuard configuration file:
 
-```
+```toml
 [Peer]
 PublicKey = lqYcojJMsIZXMUw1heAFbQHBoKjCEaeo7M1WXDh/KWc=
 AllowedIPs = 10.70.0.40/32
 
 [Peer]
+# Custom comment
 PublicKey = 928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=
 AllowedIPs = 10.70.0.80/32
 ```
 
-```
+```toml
 [Peer]
-# frcognowin10
+# friendly_name = frcognowin10
 PublicKey = lqYcojJMsIZXMUw1heAFbQHBoKjCEaeo7M1WXDh/KWc=
 AllowedIPs = 10.70.0.40/32
 
 [Peer]
-# OnePlus 5T
+# friendly_name = OnePlus 5T
+# Custom comment
 PublicKey = 928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=
 AllowedIPs = 10.70.0.80/32
 ```
 
-As you can see, all you need to do is to add the friendly name as comment (and enable the flag since this feature is opt-in).
+As you can see, all you need to do is to add the friendly name in the comments preceding a peer (and enable the flag since this feature is opt-in).
 
 This is a sample of the label split mode:
 
