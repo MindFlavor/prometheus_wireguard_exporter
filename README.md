@@ -4,11 +4,11 @@
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
-[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.4.0)
-[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.4.0)
+[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.4.1)
+[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.4.1)
 
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.0.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.0.svg)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.1.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.1.svg)
 
 ## Intro
 
@@ -18,6 +18,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
+* From release [3.4.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.4.0) the exporter supports prepending `sudo` to the `wg` command. This allows to run the exporter as a non root user (although sudoer without password). Thanks to [Jonas Seydel](https://github.com/Thor77) for the idea.
 * **BREAKING** From release [3.4.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.4.0) the exporter requires you to specify the friendly names in a specific format (only if you want to use them of course). This allows you to use arbitrary comments in the file while keeping the friendly name functionality. Thank you [Miloš Bunčić](https://github.com/psyhomb) for this. This also paves the way for future metadata. In order to migrate you can use this sed command: `sed -i  's/#/# friendly_name=/' peers.conf`. Please make sure to do a backup before using it!
 * From release [3.3.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.3.1) the exporter accepts multiple interfaces in the command line options. Just pass the `-i` parameter multiple times. Note the not specifying the interface is equivalent to specifying every one of them (the exporter will pass the `all` parameter to `wg show` command).
 * **BREAKING** Starting from release [3.3.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.3.0) the exporter allows you to specify a different interface from the file name. Previously if you specified the file name (the `-n` flag) the program would infer the interface name from the file name. Now the two items are decoupled: you need to specify the file name (with `-n`) and the interface name (with `-i`) separately. Thank you [Vincent Debergue](https://github.com/vdebergue) for helping with this (see issue [#22](https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/22)). Upgrading from [3.2.4](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.2.4): Please note that the `-n` flag no longer infer automatically the interface name from the file name. We now have the `-i` parameter for that. In order to keep the previous behaviour (if you use the `-n` flag) please add the `-i` flag to the command line arguments as well. For example, if you had `prometheus_wireguard_exporter -n /etc/wireguard/wg0.conf` you must specify `prometheus_wireguard_exporter -n /etc/wireguard/wg0.conf -i wg0` to keep the same behaviour.
@@ -61,6 +62,7 @@ Start the binary with `-h` to get the complete syntax. The parameters are:
 | Parameter | Mandatory | Valid values | Default | Accepts multiple occurrences? | Description |
 | -- | -- | -- | -- | -- | -- |
 | `-v` | no | <switch> | | No | Enable verbose mode.
+| `-a` | no | <switch> | | No | Prepends sudo to `wg` commands.
 | `-l` | no | any valid ip address | 0.0.0.0 | No | Specify the service address. This is the address your Prometheus instance should point to.
 | `-p` | no | any valid port number | 9586 | No | Specify the service port. This is the port your Prometheus instance should point to.
 | `-n` | no | path to the wireguard configuration file | | No | This flag adds the *friendly_name* attribute to the exported entries. See [Friendly names](#friendly-names) for more details.
