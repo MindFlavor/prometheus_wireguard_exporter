@@ -47,11 +47,21 @@ async fn perform_request(
     let mut wg_accumulator: Option<WireGuard> = None;
 
     for interface_to_handle in interfaces_to_handle {
-        let output = Command::new("wg")
-            .arg("show")
-            .arg(&interface_to_handle)
-            .arg("dump")
-            .output()?;
+        let output = if options.prepend_sudo {
+            Command::new("sudo")
+                .arg("wg")
+                .arg("show")
+                .arg(&interface_to_handle)
+                .arg("dump")
+                .output()?
+        } else {
+            Command::new("wg")
+                .arg("show")
+                .arg(&interface_to_handle)
+                .arg("dump")
+                .output()?
+        };
+
         let output_stdout_str = String::from_utf8(output.stdout)?;
         trace!(
             "wg show {} dump stdout == {}",
@@ -123,6 +133,12 @@ async fn main() {
             Arg::with_name("verbose")
                 .short("v")
                 .help("verbose logging")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("prepend_sudo")
+                .short("a")
+                .help("Prepend sudo to the wg show commands")
                 .takes_value(false),
         )
         .arg(

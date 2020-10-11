@@ -1,6 +1,7 @@
 #[derive(Debug, Clone)]
 pub(crate) struct Options {
     pub verbose: bool,
+    pub prepend_sudo: bool,
     pub separate_allowed_ips: bool,
     pub extract_names_config_file: Option<String>,
     pub interfaces: Option<Vec<String>>,
@@ -11,6 +12,7 @@ impl Options {
     pub fn from_claps(matches: &clap::ArgMatches<'_>) -> Options {
         let options = Options {
             verbose: matches.is_present("verbose"),
+            prepend_sudo: matches.is_present("prepend_sudo"),
             separate_allowed_ips: matches.is_present("separate_allowed_ips"),
             extract_names_config_file: matches
                 .value_of("extract_names_config_files")
@@ -28,9 +30,4 @@ impl Options {
 
         options
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }
