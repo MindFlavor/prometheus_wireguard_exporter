@@ -37,8 +37,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 Alternatively, as long as you have Wireguard on your host kernel with some Wireguard interfaces running, you can use Docker. For example:
 
 ```sh
-docker build -t prometheusWireguardExporter https://github.com/mindflavor/prometheus_wireguard_exporter
-docker run -it --rm --init --net=host --cap-add=NET_ADMIN prometheusWireguardExporter
+docker run -it --rm --init --net=host --cap-add=NET_ADMIN mindflavor/prometheus-wireguard-exporter
 # Check it's up
 docker run -it --rm alpine:3.12 wget -qO- http://localhost:9586/metrics
 ```
