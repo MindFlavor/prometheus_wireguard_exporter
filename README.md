@@ -58,6 +58,12 @@ If you want the latest release you can simply use:
 cargo install prometheus_wireguard_exporter
 ```
 
+You can also build the Docker image with
+
+```sh
+docker build -t mindflavor/prometheus-wireguard-exporter .
+```
+
 ## Usage
 
 Start the binary with `-h` to get the complete syntax. The parameters are:
