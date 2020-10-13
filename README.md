@@ -10,6 +10,10 @@
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
 [![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.1.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.4.1.svg)
 
+![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/workflows/Buildx%20latest/badge.svg)
+
+[![dockeri.co](https://dockeri.co/image/mindflavor/prometheus-wireguard-exporter)](https://hub.docker.com/r/mindflavor/prometheus-wireguard-exporter)
+
 ## Intro
 
 A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rust. This tool exports the `wg show all dump` (or `wg show <interface> dump` if you specify a config file) results in a format that [Prometheus](https://prometheus.io/) can understand. The exporter is very light on your server resources, both in terms of memory and CPU usage.
@@ -33,8 +37,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 Alternatively, as long as you have Wireguard on your host kernel with some Wireguard interfaces running, you can use Docker. For example:
 
 ```sh
-docker build -t prometheusWireguardExporter https://github.com/mindflavor/prometheus_wireguard_exporter
-docker run -it --rm --init --net=host --cap-add=NET_ADMIN prometheusWireguardExporter
+docker run -it --rm --init --net=host --cap-add=NET_ADMIN mindflavor/prometheus-wireguard-exporter
 # Check it's up
 docker run -it --rm alpine:3.12 wget -qO- http://localhost:9586/metrics
 ```
@@ -53,6 +56,12 @@ If you want the latest release you can simply use:
 
 ```bash
 cargo install prometheus_wireguard_exporter
+```
+
+You can also build the Docker image with
+
+```sh
+docker build -t mindflavor/prometheus-wireguard-exporter .
 ```
 
 ## Usage
