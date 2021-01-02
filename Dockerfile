@@ -25,7 +25,7 @@ FROM alpine:${ALPINE_VERSION}
 EXPOSE 9586/tcp
 RUN adduser prometheus-wireguard-exporter -s /bin/sh -D -u 1000 1000 && \
     mkdir -p /etc/sudoers.d && \
-    echo prometheus-wireguard-exporter ALL=\(root\) NOPASSWD:/usr/bin/wg show * dump > /etc/sudoers.d/prometheus-wireguard-exporter && \
+    echo 'prometheus-wireguard-exporter ALL=(root) NOPASSWD:/usr/bin/wg show * dump' > /etc/sudoers.d/prometheus-wireguard-exporter && \
     chmod 0440 /etc/sudoers.d/prometheus-wireguard-exporter
 RUN apk add --update -q --no-cache wireguard-tools-wg sudo
 USER prometheus-wireguard-exporter
