@@ -1,7 +1,7 @@
 use crate::exporter_error::ExporterError;
 use crate::wireguard_config::PeerEntryHashMap;
 use log::{debug, trace};
-use prometheus_exporter_base::{MetricType, PrometheusMetric};
+use prometheus_exporter_base::{MetricType, PrometheusInstance, PrometheusMetric};
 use regex::Regex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -147,35 +147,23 @@ impl WireGuard {
         debug!("WireGuard::render_with_names(self == {:?}, pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called", self, pehm, split_allowed_ips,export_remote_ip_and_port);
 
         // these are the exported counters
-        let pc_sent_bytes_total = PrometheusMetric::new(
-            "wireguard_sent_bytes_total",
-            MetricType::Counter,
-            "Bytes sent to the peer",
-        );
-        let pc_received_bytes_total = PrometheusMetric::new(
-            "wireguard_received_bytes_total",
-            MetricType::Counter,
-            "Bytes received from the peer",
-        );
-        let pc_latest_handshake = PrometheusMetric::new(
-            "wireguard_latest_handshake_seconds",
-            MetricType::Gauge,
-            "Seconds from the last handshake",
-        );
+        let mut pc_sent_bytes_total = PrometheusMetric::build()
+            .with_name("wireguard_sent_bytes_total")
+            .with_metric_type(MetricType::Counter)
+            .with_help("Bytes sent to the peer")
+            .build();
+        let mut pc_received_bytes_total = PrometheusMetric::build()
+            .with_name("wireguard_received_bytes_total")
+            .with_metric_type(MetricType::Counter)
+            .with_help("Bytes received from the peer")
+            .build();
+        let mut pc_latest_handshake = PrometheusMetric::build()
+            .with_name("wireguard_latest_handshake_seconds")
+            .with_metric_type(MetricType::Gauge)
+            .with_help("Seconds from the last handshake")
+            .build();
 
-        // these 3 vectors will hold the intermediate
-        // values. We use the vector in order to traverse
-        // the interfaces slice only once: since we need to output
-        // the values grouped by counter we populate the vectors here
-        // and then reorder during the final string creation phase.
-        let mut s_sent_bytes_total = Vec::new();
-        s_sent_bytes_total.push(pc_sent_bytes_total.render_header());
-
-        let mut s_received_bytes_total = Vec::new();
-        s_received_bytes_total.push(pc_received_bytes_total.render_header());
-
-        let mut s_latest_handshake = Vec::new();
-        s_latest_handshake.push(pc_latest_handshake.render_header());
+        let mut s = String::with_capacity(64 * 1024);
 
         // Here we make sure we process the interfaces in the
         // lexicographical order.
@@ -260,28 +248,34 @@ impl WireGuard {
                         attributes.push((label, val));
                     }
 
-                    s_sent_bytes_total
-                        .push(pc_sent_bytes_total.render_sample(Some(&attributes), ep.sent_bytes));
-                    s_received_bytes_total.push(
-                        pc_received_bytes_total.render_sample(Some(&attributes), ep.received_bytes),
+                    let mut instance = PrometheusInstance::new();
+                    for (h, v) in attributes {
+                        instance = instance.with_label(h, v);
+                    }
+
+                    s.push_str(
+                        &pc_sent_bytes_total
+                            .render_and_append_instance(&instance.clone().with_value(ep.sent_bytes))
+                            .render(),
                     );
-                    s_latest_handshake.push(
-                        pc_latest_handshake.render_sample(Some(&attributes), ep.latest_handshake),
+
+                    s.push_str(
+                        &pc_received_bytes_total
+                            .render_and_append_instance(
+                                &instance.clone().with_value(ep.received_bytes),
+                            )
+                            .render(),
+                    );
+
+                    s.push_str(
+                        &pc_latest_handshake
+                            .render_and_append_instance(
+                                &instance.with_value(ep.latest_handshake.into()),
+                            )
+                            .render(),
                     );
                 }
             }
-        }
-
-        // now let's join the results and return it to the caller
-        let mut s = String::with_capacity(s_latest_handshake.len() * 64 * 3);
-        for item in s_sent_bytes_total {
-            s.push_str(&item);
-        }
-        for item in s_received_bytes_total {
-            s.push_str(&item);
-        }
-        for item in s_latest_handshake {
-            s.push_str(&item);
         }
 
         s
