@@ -1,4 +1,4 @@
-extern crate serde_json;
+//extern crate serde_json;
 #[macro_use]
 extern crate failure;
 use clap::{crate_authors, crate_name, crate_version, Arg};
@@ -10,15 +10,13 @@ use options::Options;
 mod wireguard;
 use std::convert::TryFrom;
 use std::process::Command;
-use std::string::String;
 use wireguard::WireGuard;
 mod exporter_error;
 mod wireguard_config;
-use wireguard_config::peer_entry_hashmap_try_from;
-extern crate prometheus_exporter_base;
 use prometheus_exporter_base::render_prometheus;
 use std::net::IpAddr;
 use std::sync::Arc;
+use wireguard_config::peer_entry_hashmap_try_from;
 
 async fn perform_request(
     _req: Request<Body>,
@@ -110,8 +108,8 @@ async fn perform_request(
     }
 }
 
-#[tokio::main]
-async fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let matches = clap::App::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!("\n"))
@@ -202,4 +200,6 @@ async fn main() {
         Box::pin(perform_request(request, options))
     })
     .await;
+
+    Ok(())
 }

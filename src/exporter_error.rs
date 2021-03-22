@@ -14,7 +14,7 @@ pub enum ExporterError {
     Generic {},
 
     #[fail(display = "Hyper error: {}", e)]
-    Hyper { e: hyper::error::Error },
+    Hyper { e: hyper::Error },
 
     #[fail(display = "http error: {}", e)]
     Http { e: http::Error },
@@ -50,8 +50,8 @@ impl From<std::io::Error> for ExporterError {
     }
 }
 
-impl From<hyper::error::Error> for ExporterError {
-    fn from(e: hyper::error::Error) -> Self {
+impl From<hyper::Error> for ExporterError {
+    fn from(e: hyper::Error) -> Self {
         ExporterError::Hyper { e }
     }
 }
