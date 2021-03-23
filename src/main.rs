@@ -1,6 +1,4 @@
 //extern crate serde_json;
-#[macro_use]
-extern crate failure;
 use clap::{crate_authors, crate_name, crate_version, Arg};
 use hyper::{Body, Request};
 use log::{debug, info, trace};
@@ -10,6 +8,8 @@ use options::Options;
 mod wireguard;
 use std::convert::TryFrom;
 use std::process::Command;
+mod friendly_description;
+pub use friendly_description::*;
 use wireguard::WireGuard;
 mod exporter_error;
 mod wireguard_config;
@@ -21,7 +21,7 @@ use wireguard_config::peer_entry_hashmap_try_from;
 async fn perform_request(
     _req: Request<Body>,
     options: Arc<Options>,
-) -> Result<String, failure::Error> {
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let interfaces_to_handle = match &options.interfaces {
         Some(interfaces_str) => interfaces_str.clone(),
         None => vec!["all".to_owned()],

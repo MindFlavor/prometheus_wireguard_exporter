@@ -1,5 +1,6 @@
 use crate::exporter_error::ExporterError;
 use crate::wireguard_config::PeerEntryHashMap;
+use crate::FriendlyDescription;
 use log::{debug, trace};
 use prometheus_exporter_base::{MetricType, PrometheusInstance, PrometheusMetric};
 use regex::Regex;
@@ -226,9 +227,30 @@ impl WireGuard {
                     // let's add the friendly_name attribute if present
                     // and has meaniningful value
                     if let Some(pehm) = pehm {
-                        if let Some(ep_friendly_name) = pehm.get(&ep.public_key as &str) {
-                            if let Some(ep_friendly_name) = ep_friendly_name.name {
-                                attributes.push(("friendly_name", &ep_friendly_name));
+                        if let Some(ep_friendly_description) = pehm.get(&ep.public_key as &str) {
+                            if let Some(friendly_description) =
+                                &ep_friendly_description.friendly_description
+                            {
+                                match friendly_description {
+                                    FriendlyDescription::Name(name) => {
+                                        attributes.push(("friendly_name", name));
+                                    }
+                                    FriendlyDescription::Json(json) => {
+                                        // let's put them in a intermediate vector and then sort it
+                                        let mut v_temp = Vec::new();
+
+                                        json.iter().for_each(|(header, value)| {
+                                            //attributes_owned
+                                            v_temp.push((header.to_string(), value.to_string()));
+                                        });
+
+                                        v_temp.sort_by(|(k0, _), (k1, _)| k0.cmp(k1));
+
+                                        v_temp
+                                            .into_iter()
+                                            .for_each(|item| attributes_owned.push(item));
+                                    }
+                                }
                             }
                         }
                     }
@@ -475,6 +497,8 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
 
         const REF_SPLIT_NO_REMOTE :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 14\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 1000000000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 50\n";
 
+        const REF_JSON :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"\"Coordinator\"\",id=\"482217555\",last_name=\"\"DrProxy.me\"\",username=\"\"DrProxyMeCoordinator\"\",remote_port=\"100\"} 14\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"\"Coordinator\"\",id=\"482217555\",last_name=\"\"DrProxy.me\"\",username=\"\"DrProxyMeCoordinator\"\",remote_port=\"100\"} 1000000000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"\"Coordinator\"\",id=\"482217555\",last_name=\"\"DrProxy.me\"\",username=\"\"DrProxyMeCoordinator\"\",remote_port=\"100\"} 50\n";
+
         let re1 = Endpoint::Remote(RemoteEndpoint {
             public_key: "test".to_owned(),
             remote_ip: Some("remote_ip".to_owned()),
@@ -509,9 +533,11 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         let pe = PeerEntry {
             public_key: "second_test",
             allowed_ips: "ignored",
-            name: Some("this is my friendly name"),
+            friendly_description: Some(FriendlyDescription::Name(
+                "this is my friendly name".into(),
+            )),
         };
-        pehm.insert(pe.public_key, pe);
+        pehm.insert(pe.public_key, pe.clone());
 
         let prometheus = wg.render_with_names(Some(&pehm), false, true);
         assert_eq!(prometheus, REF);
@@ -521,5 +547,33 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
 
         let prometheus = wg.render_with_names(Some(&pehm), true, false);
         assert_eq!(prometheus, REF_SPLIT_NO_REMOTE);
+
+        // second test
+        let mut pehm = PeerEntryHashMap::new();
+        let mut hm = HashMap::new();
+        hm.insert(
+            "username",
+            serde_json::Value::String("DrProxyMeCoordinator".to_owned()),
+        );
+        hm.insert("id", serde_json::Value::Number(482217555.into()));
+        hm.insert(
+            "first_name",
+            serde_json::Value::String("Coordinator".to_owned()),
+        );
+        hm.insert(
+            "last_name",
+            serde_json::Value::String("DrProxy.me".to_owned()),
+        );
+        hm.insert("auth_date", serde_json::Value::Number(1614869789.into()));
+
+        let pe = PeerEntry {
+            public_key: "second_test",
+            allowed_ips: "ignored",
+            friendly_description: Some(FriendlyDescription::Json(hm)),
+        };
+        pehm.insert(pe.public_key, pe.clone());
+
+        let prometheus = wg.render_with_names(Some(&pehm), false, true);
+        assert_eq!(prometheus, REF_JSON);
     }
 }
