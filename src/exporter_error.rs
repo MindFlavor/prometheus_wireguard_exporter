@@ -1,40 +1,54 @@
-#[derive(Debug, Fail)]
-pub enum PeerEntryParseError {
-    #[fail(display = "PublicKey entry not found in lines: {:?}", lines)]
-    PublicKeyNotFound { lines: Vec<String> },
+use thiserror::Error;
 
-    #[fail(display = "AllowedIPs entry not found in lines: {:?}", lines)]
-    AllowedIPsEntryNotFound { lines: Vec<String> },
+#[derive(Error, Debug)]
+pub enum FriendlyDescritionParseError {
+    #[error("unsupported header")]
+    UnsupportedHeader(String),
+
+    #[error("json parse error")]
+    SerdeJsonError(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
+pub enum PeerEntryParseError {
+    #[error("PublicKey entry not found in lines: {:?}", lines)]
+    PublicKeyNotFound { lines: Vec<String> },
+
+    #[error("AllowedIPs entry not found in lines: {:?}", lines)]
+    AllowedIPsEntryNotFound { lines: Vec<String> },
+
+    #[error("Friendly description parse error")]
+    FriendlyDescritionParseError(#[from] FriendlyDescritionParseError),
+}
+
+#[derive(Debug, Error)]
 pub enum ExporterError {
     #[allow(dead_code)]
-    #[fail(display = "Generic error")]
+    #[error("Generic error")]
     Generic {},
 
-    #[fail(display = "Hyper error: {}", e)]
-    Hyper { e: hyper::error::Error },
+    #[error("Hyper error: {}", e)]
+    Hyper { e: hyper::Error },
 
-    #[fail(display = "http error: {}", e)]
+    #[error("http error: {}", e)]
     Http { e: http::Error },
 
-    #[fail(display = "UTF-8 error: {}", e)]
+    #[error("UTF-8 error: {}", e)]
     UTF8 { e: std::string::FromUtf8Error },
 
-    #[fail(display = "JSON format error: {}", e)]
+    #[error("JSON format error: {}", e)]
     JSON { e: serde_json::error::Error },
 
-    #[fail(display = "IO Error: {}", e)]
+    #[error("IO Error: {}", e)]
     IO { e: std::io::Error },
 
-    #[fail(display = "UTF8 conversion error: {}", e)]
+    #[error("UTF8 conversion error: {}", e)]
     Utf8 { e: std::str::Utf8Error },
 
-    #[fail(display = "int conversion error: {}", e)]
+    #[error("int conversion error: {}", e)]
     ParseInt { e: std::num::ParseIntError },
 
-    #[fail(display = "PeerEntry parse error: {}", e)]
+    #[error("PeerEntry parse error: {}", e)]
     PeerEntryParseError { e: PeerEntryParseError },
 }
 
@@ -50,8 +64,8 @@ impl From<std::io::Error> for ExporterError {
     }
 }
 
-impl From<hyper::error::Error> for ExporterError {
-    fn from(e: hyper::error::Error) -> Self {
+impl From<hyper::Error> for ExporterError {
+    fn from(e: hyper::Error) -> Self {
         ExporterError::Hyper { e }
     }
 }
