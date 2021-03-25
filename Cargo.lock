@@ -508,7 +508,7 @@ dependencies = [
 
 [[package]]
 name = "prometheus_wireguard_exporter"
-version = "3.4.2"
+version = "3.5.0"
 dependencies = [
  "clap",
  "env_logger",
