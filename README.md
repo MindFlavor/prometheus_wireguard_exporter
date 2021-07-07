@@ -45,6 +45,18 @@ docker run -it --rm alpine:3.12 wget -qO- http://localhost:9586/metrics
 
 ℹ️ The Docker image is compatible with `amd64`, `386`, `arm64`, `armv7` and `armv6` CPUs.
 
+To update the image, you can use
+
+```sh
+docker pull mindflavor/prometheus_wireguard_exporter
+```
+
+You can also build it with:
+
+```sh
+docker build -t mindflavor/prometheus_wireguard_exporter https://github.com/MindFlavor/prometheus_wireguard_exporter.git
+```
+
 ## Compilation
 
 To compile the latest master version:
