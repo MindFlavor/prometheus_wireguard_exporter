@@ -23,6 +23,12 @@ COPY Cargo.toml Cargo.lock ./
 RUN cargo fetch && \
     rm src/main.rs
 
+ARG STATIC=yes
+RUN touch /tmp/rustflags && \
+    if [ "${STATIC}" != "yes" ]; then \
+      echo "-C target-feature=-crt-static" | tee /tmp/rustflags; \
+    fi
+
 ARG TARGETPLATFORM
 RUN echo "Setting variables for ${TARGETPLATFORM:=linux/amd64}" && \
     case "${TARGETPLATFORM}" in \
@@ -76,7 +82,9 @@ COPY .cargo ./.cargo
 
 # Install dependencies
 RUN echo 'fn main() {}' > src/main.rs && \
-    CC="$(cat /tmp/musl)-gcc" cargo build --target "$(cat /tmp/rusttarget)" --release
+    RUSTFLAGS="$(cat /tmp/rustflags)" \
+    CC="$(cat /tmp/musl)-gcc" \
+    cargo build --target "$(cat /tmp/rusttarget)" --release
 RUN rm -r \
     target/*-linux-*/release/deps/prometheus_wireguard_exporter* \
     target/*-linux-*/release/prometheus_wireguard_exporter* \
@@ -84,14 +92,15 @@ RUN rm -r \
 
 # Build static binary with musl built-in
 COPY . .
-RUN CC="$(cat /tmp/musl)-gcc" cargo build --target "$(cat /tmp/rusttarget)" --release && \
+RUN RUSTFLAGS="$(cat /tmp/rustflags)" \
+    CC="$(cat /tmp/musl)-gcc" \
+    cargo build --target "$(cat /tmp/rusttarget)" --release && \
     mv target/*-linux-*/release/prometheus_wireguard_exporter /tmp/binary
-RUN file /tmp/binary
-
-# Test the binary works on the target platform
-FROM scratch AS binarytest
-COPY --from=build /tmp/binary /binary
-RUN ["/binary", "--help"]
+RUN description="$(file /tmp/binary)" && \
+    echo "$description" && \
+    if [ "${STATIC}" = "yes" ] && [ ! -z "$(echo $description | grep musl)" ]; then \
+      echo "binary is not statically built!" && exit 1; \
+    fi
 
 FROM alpine:${ALPINE_VERSION}
 EXPOSE 9586/tcp
@@ -104,4 +113,4 @@ RUN apk add --update -q --no-cache wireguard-tools-wg sudo
 USER prometheus-wireguard-exporter
 ENTRYPOINT [ "/usr/local/bin/prometheus_wireguard_exporter" ]
 CMD [ "-a" ]
-COPY --from=binarytest --chown=prometheus-wireguard-exporter /binary ./prometheus_wireguard_exporter
+COPY --from=build --chown=prometheus-wireguard-exporter /tmp/binary ./prometheus_wireguard_exporter
