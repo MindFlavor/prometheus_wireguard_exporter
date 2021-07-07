@@ -43,6 +43,8 @@ docker run -it --rm --init --net=host --cap-add=NET_ADMIN mindflavor/prometheus-
 docker run -it --rm alpine:3.12 wget -qO- http://localhost:9586/metrics
 ```
 
+ℹ️ The Docker image is compatible with `amd64`, `386`, `arm64`, `armv7` and `armv6` CPUs.
+
 ## Compilation
 
 To compile the latest master version:
