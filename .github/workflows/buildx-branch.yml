@@ -32,7 +32,7 @@ jobs:
         run: |
           docker buildx build \
             --progress plain \
-            --platform=linux/amd64,linux/386,linux/arm64,linux/arm/v6,linux/arm/v7 \
+            --platform=linux/amd64 \
             --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
             --build-arg COMMIT=`git rev-parse --short HEAD` \
             --build-arg VERSION=${GITHUB_REF##*/} \
