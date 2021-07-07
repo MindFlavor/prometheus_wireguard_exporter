@@ -1,0 +1,25 @@
+# This is used in the Docker build, you might need to adjust it for local usage.
+
+[target.x86_64-unknown-linux-musl]
+linker = "x86_64-linux-musl-gcc"
+
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+
+[target.armv7-unknown-linux-musleabi]
+linker = "armv7m-linux-musleabi-gcc"
+
+[target.arm-unknown-linux-musleabi]
+linker = "armv6-linux-musleabi-gcc"
+
+[target.i686-unknown-linux-musl]
+linker = "i686-linux-musl-gcc"
+
+[target.powerpc64le-unknown-linux-musl]
+linker = "powerpc64le-linux-musl-gcc"
+
+[target.s390x-unknown-linux-musl]
+linker = "s390x-linux-musl-gcc"
+
+[target.riscv64gc-unknown-linux-musl]
+linker = "riscv64-linux-musl-gcc"
