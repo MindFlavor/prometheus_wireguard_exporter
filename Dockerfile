@@ -16,6 +16,13 @@ RUN apt-get update -y && \
     # for verifying the binary properties
     file
 
+# Download dependencies
+RUN mkdir src && \
+    echo 'fn main() {}' > src/main.rs
+COPY Cargo.toml Cargo.lock ./
+RUN cargo fetch && \
+    rm src/main.rs
+
 ARG TARGETPLATFORM
 RUN echo "Setting variables for ${TARGETPLATFORM:=linux/amd64}" && \
     case "${TARGETPLATFORM}" in \
@@ -68,9 +75,7 @@ RUN rustup target add "$(cat /tmp/rusttarget)"
 COPY .cargo ./.cargo
 
 # Install dependencies
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && \
-    echo 'fn main() {}' > src/main.rs && \
+RUN echo 'fn main() {}' > src/main.rs && \
     CC="$(cat /tmp/musl)-gcc" cargo build --target "$(cat /tmp/rusttarget)" --release
 RUN rm -r \
     target/*-linux-*/release/deps/prometheus_wireguard_exporter* \
