@@ -4,9 +4,6 @@ ARG RUST_VERSION=1-alpine${ALPINE_VERSION}
 FROM rust:${RUST_VERSION} AS build
 WORKDIR /usr/src/prometheus_wireguard_exporter
 
-# Setup
-RUN apk add musl-dev
-
 # Install dependencies
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && \
