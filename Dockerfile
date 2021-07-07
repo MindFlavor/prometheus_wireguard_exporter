@@ -17,7 +17,7 @@ RUN apt-get update -y && \
     file
 
 ARG TARGETPLATFORM
-RUN echo "Setting variables for ${TARGETPLATFORM}" && \
+RUN echo "Setting variables for ${TARGETPLATFORM:=linux/amd64}" && \
     case "${TARGETPLATFORM}" in \
       linux/amd64) \
         MUSL="x86_64-linux-musl"; \
