@@ -70,9 +70,12 @@ COPY .cargo ./.cargo
 # Install dependencies
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs
-RUN CC="$(cat /tmp/musl)-gcc" cargo build --target "$(cat /tmp/rusttarget)" --release && \
-    rm -rf target/release/deps/prometheus_wireguard_exporter*
+    echo 'fn main() {}' > src/main.rs && \
+    CC="$(cat /tmp/musl)-gcc" cargo build --target "$(cat /tmp/rusttarget)" --release
+RUN rm -r \
+    target/*-linux-*/release/deps/prometheus_wireguard_exporter* \
+    target/*-linux-*/release/prometheus_wireguard_exporter* \
+    src/main.rs
 
 # Build static binary with musl built-in
 COPY . .
