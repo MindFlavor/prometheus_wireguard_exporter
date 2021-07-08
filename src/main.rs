@@ -27,20 +27,24 @@ async fn perform_request(
         None => vec!["all".to_owned()],
     };
 
-    let peer_entry_contents =
-        if let Some(extract_names_config_file) = &options.extract_names_config_file {
-            Some(::std::fs::read_to_string(
-                &extract_names_config_file as &str,
-            )?)
-        } else {
-            None
-        };
+    let peer_entry_contents = options
+        .extract_names_config_files
+        .as_ref()
+        .map(|files| {
+            files // if we have values
+                .iter() // for each value
+                .map(|file| std::fs::read_to_string(&file as &str)) // read the contents into a String
+                .collect::<Result<Vec<String>, std::io::Error>>() // And transform it into a vec (stopping in case of errors)
+        })
+        .transpose()? // bail out if there was an error
+        .map(|strings| strings.join("\n")); // now join the strings in a new string
 
-    let peer_entry_hashmap = if let Some(peer_entry_contents) = &peer_entry_contents {
-        Some(peer_entry_hashmap_try_from(peer_entry_contents)?)
-    } else {
-        None
-    };
+    let peer_entry_hashmap = peer_entry_contents
+        .as_ref()
+        .map(|contents| peer_entry_hashmap_try_from(contents))
+        .transpose()?;
+
+    trace!("peer_entry_hashmap == {:#?}", peer_entry_hashmap);
 
     let mut wg_accumulator: Option<WireGuard> = None;
 
@@ -154,8 +158,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .arg(
             Arg::with_name("extract_names_config_files")
                 .short("n")
-                .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment)")
-                .multiple(false)
+                .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment). Multiple files are supported.")
+                .multiple(true)
                 .number_of_values(1)
                 .takes_value(true))
         .arg(

@@ -6,14 +6,38 @@ use prometheus_exporter_base::{MetricType, PrometheusInstance, PrometheusMetric}
 use regex::Regex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fmt::Debug;
 use std::net::SocketAddr;
 
 const EMPTY: &str = "(none)";
 
+#[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct SecureString(String);
+
+#[cfg(feature = "leaky_log")]
+impl Debug for SecureString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(not(feature = "leaky_log"))]
+impl Debug for SecureString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("**hidden**")
+    }
+}
+
+impl From<&str> for SecureString {
+    fn from(s: &str) -> Self {
+        Self(s.to_owned())
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub(crate) struct LocalEndpoint {
     pub public_key: String,
-    pub private_key: String,
+    pub private_key: SecureString,
     pub local_port: u16,
     pub persistent_keepalive: bool,
 }
@@ -70,7 +94,7 @@ impl TryFrom<&str> for WireGuard {
                 // this is the local interface
                 Endpoint::Local(LocalEndpoint {
                     public_key: v[1].to_owned(),
-                    private_key: v[2].to_owned(),
+                    private_key: v[2].into(),
                     local_port: v[3].parse::<u16>().unwrap(),
                     persistent_keepalive: to_bool(v[4]),
                 })
