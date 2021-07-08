@@ -58,7 +58,7 @@ docker pull mindflavor/prometheus_wireguard_exporter
 
 Or use a [tagged image](https://hub.docker.com/r/mindflavor/prometheus-wireguard-exporter/tags) such as `:3.5.1`.
 
-If your host has a `amd64` or `686` CPU, you can also build the Docker image from source (you need `git`) with:
+If your host has an `amd64` or `686` CPU, you can also build the Docker image from source (you need `git`) with:
 
 ```sh
 docker build -t mindflavor/prometheus_wireguard_exporter https://github.com/MindFlavor/prometheus_wireguard_exporter.git#master
