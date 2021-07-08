@@ -264,3 +264,28 @@ ExecStart=/usr/local/bin/prometheus_wireguard_exporter -n /etc/wireguard/peers.c
 [Install]
 WantedBy=multi-user.target
 ```
+
+## Development
+
+### Locally
+
+1. Install [Rust](https://www.rust-lang.org/tools/install)
+1. Install [Rust Analyzer](https://rust-analyzer.github.io/manual.html#installation) and set it up with your editor
+1. Install [Clippy](https://github.com/rust-lang/rust-clippy): `rustup clippy`
+
+You may want to install Docker as well to build and run the Docker image.
+
+The following commands are available:
+
+```sh
+# Download dependencies
+cargo fetch
+# Build the program
+cargo build
+# Run tests
+cargo test
+# Run clippy to lint
+cargo clippy
+# Build the Docker image
+docker build -t mindflavor/prometheus_wireguard_exporter .
+```
