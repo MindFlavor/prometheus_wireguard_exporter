@@ -3,7 +3,7 @@ ARG BUILDPLATFORM=linux/amd64
 ARG ALPINE_VERSION=3.12
 ARG RUST_VERSION=1-slim-bullseye
 
-FROM --platform=${BUILDPLATFORM} rust:${RUST_VERSION} AS build
+FROM --platform=${BUILDPLATFORM} rust:${RUST_VERSION} AS base
 WORKDIR /usr/src/prometheus_wireguard_exporter
 
 # Setup
@@ -90,8 +90,16 @@ RUN rm -r \
     target/*-linux-*/release/prometheus_wireguard_exporter* \
     src/main.rs
 
-# Build static binary with musl built-in
 COPY . .
+
+FROM base AS test
+ENTRYPOINT \
+    RUSTFLAGS="$(cat /tmp/rustflags)" \
+    CC="$(cat /tmp/musl)-gcc" \
+    cargo test --target "$(cat /tmp/rusttarget)"
+
+FROM base AS build
+# Build static binary with musl built-in
 RUN RUSTFLAGS="$(cat /tmp/rustflags)" \
     CC="$(cat /tmp/musl)-gcc" \
     cargo build --target "$(cat /tmp/rusttarget)" --release && \
