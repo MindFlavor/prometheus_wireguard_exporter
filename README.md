@@ -84,15 +84,9 @@ docker build -t mindflavor/prometheus_wireguard_exporter https://github.com/Mind
     cargo install --path .
     ```
 
-    💁 If you encounter errors, please try:
-    * Update your Rust installation
-
-        ```sh
-        rustup update
-        cargo install -path .
-        ```
-
-    * Use the same Rust version I used: `rustc 1.55.0-nightly (798baebde 2021-07-02)`
+    💁 If you encounter errors, please try updating your rust installation with `rustup update`.
+    The code should compile with any relatively recent, 2018-compliant rustc version.
+    As a frame of reference, the last release was built using the Rust Docker image using `rustc 1.53.0 (53cb7b09b 2021-06-17)`.
 
 1. Run the program
 
