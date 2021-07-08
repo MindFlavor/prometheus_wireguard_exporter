@@ -93,8 +93,7 @@ RUN rm -r \
 COPY . .
 
 FROM base AS lint
-ENTRYPOINT \
-    RUSTFLAGS="$(cat /tmp/rustflags)" \
+RUN RUSTFLAGS="$(cat /tmp/rustflags)" \
     CC="$(cat /tmp/musl)-gcc" \
     cargo clippy --target "$(cat /tmp/rusttarget)"
 
