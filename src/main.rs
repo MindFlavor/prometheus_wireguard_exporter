@@ -194,7 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("using options: {:?}", options);
 
     let bind = matches.value_of("port").unwrap();
-    let bind = u16::from_str_radix(&bind, 10).expect("port must be a valid number");
+    let bind = (&bind).parse::<u16>().expect("port must be a valid number");
     let ip = matches.value_of("addr").unwrap().parse::<IpAddr>().unwrap();
     let addr = (ip, bind).into();
 

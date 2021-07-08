@@ -139,8 +139,7 @@ impl TryFrom<&str> for WireGuard {
             if let Some(endpoints) = wg.interfaces.get_mut(v[0]) {
                 endpoints.push(endpoint);
             } else {
-                let mut new_vec = Vec::new();
-                new_vec.push(endpoint);
+                let new_vec = vec![endpoint];
                 wg.interfaces.insert(v[0].to_owned(), new_vec);
             }
         }
@@ -212,10 +211,10 @@ impl WireGuard {
                     // store in attibutes their references. attributes_owned is onyl
                     // needed for separate ip+subnet
                     let mut attributes_owned: Vec<(String, String)> = Vec::new();
-                    let mut attributes: Vec<(&str, &str)> = Vec::new();
-
-                    attributes.push(("interface", interface));
-                    attributes.push(("public_key", &ep.public_key));
+                    let mut attributes: Vec<(&str, &str)> = vec![
+                        ("interface", interface),
+                        ("public_key", &ep.public_key),
+                    ];
 
                     if split_allowed_ips {
                         let v_ip_and_subnet: Vec<(&str, &str)> = ep
