@@ -4,11 +4,11 @@
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
-[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.5.0)
-[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.5.0)
+[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.5.1)
+[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.5.1)
 
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.5.0.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.5.0.svg)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.5.1.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.5.1.svg)
 
 ![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/workflows/Buildx%20latest/badge.svg)
 
@@ -22,6 +22,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
+* From release [3.5.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.5.1) the exporter supports multiple peer files. Thanks to [Tobias Krischer](https://github.com/tobikris) for the idea.
 * From release [3.5.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.5.0) the exporter supports the `friendly_json` tag. Entries prepended with the `friendly_json` tag will output all the entries in the specificed json as Prometheus attributes. Thanks to [DrProxyProSupport](https://github.com/iqdoctor) for the idea.
 * From release [3.4.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.4.0) the exporter supports prepending `sudo` to the `wg` command. This allows to run the exporter as a non root user (although sudoer without password). Thanks to [Jonas Seydel](https://github.com/Thor77) for the idea.
 * **BREAKING** From release [3.4.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.4.0) the exporter requires you to specify the friendly names in a specific format (only if you want to use them of course). This allows you to use arbitrary comments in the file while keeping the friendly name functionality. Thank you [Miloš Bunčić](https://github.com/psyhomb) for this. This also paves the way for future metadata. In order to migrate you can use this sed command: `sed -i  's/#/# friendly_name=/' peers.conf`. Please make sure to do a backup before using it!
@@ -32,7 +33,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Prerequisites
 
-* You need [Rust](https://www.rust-lang.org/) to compile this code. Simply follow the instructions on Rust's website to install the toolchain. If you get weird errors while compiling please try and update your Rust version first (I have developed it on `rustc 1.53.0-nightly (f82664191 2021-03-21)`). Alternatively you can build the docker image or use the prebuilt one.
+* You need [Rust](https://www.rust-lang.org/) to compile this code. Simply follow the instructions on Rust's website to install the toolchain. If you get weird errors while compiling please try and update your Rust version first (I have developed it on `rustc 1.55.0-nightly (798baebde 2021-07-02)`). Alternatively you can build the docker image or use the prebuilt one.
 * You need [WireGuard](https://www.wireguard.com) *and* the `wg` CLI in the path. The tool will call `wg show <interface(s)>|all dump` and of course will fail if the `wg` executable is not found. If you want I can add the option of specifying the `wg` path in the command line, just open an issue for it.
 
 Alternatively, as long as you have Wireguard on your host kernel with some Wireguard interfaces running, you can use Docker. For example:
@@ -89,7 +90,7 @@ Start the binary with `-h` to get the complete syntax. The parameters are:
 | `-a` | no | <switch> | | No | Prepends sudo to `wg` commands.
 | `-l` | no | any valid ip address | 0.0.0.0 | No | Specify the service address. This is the address your Prometheus instance should point to.
 | `-p` | no | any valid port number | 9586 | No | Specify the service port. This is the port your Prometheus instance should point to.
-| `-n` | no | path to the wireguard configuration file | | No | This flag adds the *friendly_name* attribute or the *friendly_json* attributes to the exported entries. See [Friendly tags](#friendly-tags) for more details.
+| `-n` | no | path to the wireguard configuration file | | Yes | This flag adds the *friendly_name* attribute or the *friendly_json* attributes to the exported entries. See [Friendly tags](#friendly-tags) for more details. Multiple files are allowed (they will be merged as a single file in memory so avoid duplicates).
 | `-s` | no | <switch> | off | No | Enable the allowed ip + subnet split mode for the labels.
 | `-r` | no | <switch> | off | No | Exports peer's remote ip and port as labels (if available).
 | `-i` | no | your interface name(s) | `all` | Yes | Specifies the interface(s) passed to the `wg show <interface> dump` parameter. Multiple parameters are allowed.
