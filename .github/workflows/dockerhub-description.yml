@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2.3.4
       - name: Docker Hub Description
-        uses: peter-evans/dockerhub-description@v2.1.0
-        env:
-          DOCKERHUB_USERNAME: mindflavor
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-          DOCKERHUB_REPOSITORY: mindflavor/prometheus-wireguard-exporter
+        uses: peter-evans/dockerhub-description@2.4.2
+        with:
+          username: mindflavor
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          repository: mindflavor/prometheus-wireguard-exporter
