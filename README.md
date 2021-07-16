@@ -45,7 +45,7 @@ Coming soon, subcribe to [#59](https://github.com/MindFlavor/prometheus_wireguar
 1. Download and run the container with:
 
     ```sh
-    docker run -d --init --net=host --cap-add=NET_ADMIN --name wgexporter mindflavor/prometheus-wireguard-exporter
+    docker run -d --net=host --cap-add=NET_ADMIN --name wgexporter mindflavor/prometheus-wireguard-exporter
     ```
 
 1. Check it's up by visiting [http://localhost:9586/metrics](http://localhost:9586/metrics)
