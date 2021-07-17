@@ -294,4 +294,4 @@ docker build -t mindflavor/prometheus_wireguard_exporter .
 
 This is more of a plug and play solution based on Docker and VSCode.
 
-See [.devcontainer/README.md](.devcontainer/README.md)
+See [.devcontainer/README.md](https://github.com/MindFlavor/prometheus_wireguard_exporter/blob/master/.devcontainer/README.md)
