@@ -80,6 +80,9 @@ RUN rustup target add "$(cat /tmp/rusttarget)"
 # Copy .cargo/config for cross build configuration
 COPY .cargo ./.cargo
 
+# Install Clippy for build platform
+RUN rustup component add clippy
+
 # Install dependencies
 RUN echo 'fn main() {}' > src/main.rs && \
     RUSTFLAGS="$(cat /tmp/rustflags)" \
