@@ -29,6 +29,15 @@ RUN touch /tmp/rustflags && \
       echo "-C target-feature=-crt-static" | tee /tmp/rustflags; \
     fi
 
+ARG BUILDPLATFORM
+RUN echo "Setting variables for build platform ${BUILDPLATFORM}" && \
+    case "${BUILDPLATFORM}" in \
+      linux/amd64) MUSLURL="https://more.musl.cc/x86_64-linux-musl/"; break;; \
+      linux/386) MUSLURL="https://musl.cc/"; break;; \
+      *) echo "build platform ${BUILDPLATFORM} is unsupported"; exit 1;; \
+    esac && \
+    echo "${MUSLURL}" | tee /tmp/muslurl
+
 ARG TARGETPLATFORM
 RUN echo "Setting variables for ${TARGETPLATFORM:=linux/amd64}" && \
     case "${TARGETPLATFORM}" in \
@@ -69,8 +78,9 @@ RUN echo "Setting variables for ${TARGETPLATFORM:=linux/amd64}" && \
     echo "${MUSL}" | tee /tmp/musl && \
     echo "${RUSTTARGET}" | tee /tmp/rusttarget
 
-RUN MUSL="$(cat /tmp/musl)" && \
-    wget -qO- "https://musl.cc/$MUSL-cross.tgz" | tar -xzC /tmp && \
+RUN MUSL_URL="$(cat /tmp/muslurl)" && \
+    MUSL="$(cat /tmp/musl)" && \
+    wget -qO- "${MUSL_URL}/${MUSL}-cross.tgz" | tar -xzC /tmp && \
     rm "/tmp/$MUSL-cross/usr" && \
     cp -fr /tmp/"$MUSL"-cross/* / && \
     rm -rf "/tmp/$MUSL-cross"
