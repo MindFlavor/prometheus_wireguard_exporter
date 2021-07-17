@@ -289,3 +289,9 @@ cargo clippy
 # Build the Docker image
 docker build -t mindflavor/prometheus_wireguard_exporter .
 ```
+
+### VSCode development container
+
+This is more of a plug and play solution based on Docker and VSCode.
+
+See [.devcontainer/README.md](https://github.com/MindFlavor/prometheus_wireguard_exporter/blob/master/.devcontainer/README.md)
