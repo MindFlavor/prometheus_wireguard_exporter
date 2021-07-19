@@ -82,8 +82,3 @@ jobs:
             VERSION=${{ steps.vars.outputs.version }}
           tags: mindflavor/prometheus-wireguard-exporter:${{ steps.vars.outputs.version }}
           push: true
-
-      - if: github.event.ref == 'refs/heads/master'
-        name: Microbadger hook
-        run: curl -X POST https://hooks.microbadger.com/images/mindflavor/prometheus-wireguard-exporter/TODO
-        continue-on-error: true
