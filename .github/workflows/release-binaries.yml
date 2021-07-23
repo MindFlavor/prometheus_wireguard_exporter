@@ -104,6 +104,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           strip prometheus_wireguard_exporter.exe
+          mv prometheus_wireguard_exporter.exe ../../../${{ matrix.name }}
           cd -
 
       - name: Post Build | Prepare artifacts [-nix]
@@ -111,7 +112,11 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           strip prometheus_wireguard_exporter || true
+          mv prometheus_wireguard_exporter ../../../${{ matrix.name }}
           cd -
+
+      - name: Display structure of downloaded files
+        run: ls -R
 
       - name: Deploy | Upload artifacts
         uses: actions/upload-artifact@v2
@@ -135,10 +140,13 @@ jobs:
         with:
           go-version: "^1.15.7"
 
-      - name: Setup | Artifacts
+      - name: Setup | Download Artifacts
         uses: actions/download-artifact@v2
 
-      - name: Setup | Checksums
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Setup | Create Checksum files
         run: for file in prometheus_wireguard_exporter-*/prometheus_wireguard_exporter-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
 
       # - name: Setup | Release notes
@@ -146,13 +154,12 @@ jobs:
       #     GO111MODULE=on go get github.com/git-chglog/git-chglog/cmd/git-chglog@0.14.2
       #     git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
 
-      - name: Build | Publish
-        uses: softprops/action-gh-release@v1
-        with:
-          files: prometheus_wireguard_exporter-*/prometheus_wireguard_exporter-*
-          # body_path: RELEASE.md
+      - name: Build | Publish binaries
+        uses: alexellis/upload-assets@0.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          asset_paths: '["prometheus_wireguard_exporter-*/prometheus_wireguard_exporter-*"]'
 
   # Publish prometheus_wireguard_exporter to Crates.io
   # cargo_publish:
