@@ -84,7 +84,7 @@ jobs:
           profile: minimal
           target: ${{ matrix.target }}
 
-      - name: Build | Build
+      - name: Build | Ubuntu
         if: matrix.os != 'macOS-latest'
         uses: actions-rs/cargo@v1.0.3
         with:
@@ -92,7 +92,7 @@ jobs:
           args: --release --locked --target ${{ matrix.target }}
           use-cross: ${{ matrix.os == 'ubuntu-latest' }}
 
-      - name: Build | Build
+      - name: Build | macOS
         if: matrix.os == 'macOS-latest'
         uses: actions-rs/cargo@v1.0.3
         with:
