@@ -16,47 +16,47 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-x86_64-unknown-linux-gnu.tar.gz
+            name: prometheus_wireguard_exporter-x86_64-unknown-linux-gnu
 
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-x86_64-unknown-linux-musl.tar.gz
+            name: prometheus_wireguard_exporter-x86_64-unknown-linux-musl
 
           - target: i686-unknown-linux-musl
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-i686-unknown-linux-musl.tar.gz
+            name: prometheus_wireguard_exporter-i686-unknown-linux-musl
 
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-aarch64-unknown-linux-musl.tar.gz
+            name: prometheus_wireguard_exporter-aarch64-unknown-linux-musl
 
           - target: arm-unknown-linux-musleabihf
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-arm-unknown-linux-musleabihf.tar.gz
+            name: prometheus_wireguard_exporter-arm-unknown-linux-musleabihf
 
           - target: x86_64-apple-darwin
             os: macOS-latest
-            name: prometheus_wireguard_exporter-x86_64-apple-darwin.tar.gz
+            name: prometheus_wireguard_exporter-x86_64-apple-darwin
 
           # - target: aarch64-apple-darwin
           #   os: macOS-latest
-          #   name: prometheus_wireguard_exporter-aarch64-apple-darwin.tar.gz
+          #   name: prometheus_wireguard_exporter-aarch64-apple-darwin
 
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            name: prometheus_wireguard_exporter-x86_64-pc-windows-msvc.zip
+            name: prometheus_wireguard_exporter-x86_64-pc-windows-msvc.exe
 
           - target: i686-pc-windows-msvc
             os: windows-latest
-            name: prometheus_wireguard_exporter-i686-pc-windows-msvc.zip
+            name: prometheus_wireguard_exporter-i686-pc-windows-msvc.exe
 
           # - target: aarch64-pc-windows-msvc
           #   os: windows-latest
-          #   name: prometheus_wireguard_exporter-aarch64-pc-windows-msvc.zip
+          #   name: prometheus_wireguard_exporter-aarch64-pc-windows-msvc.exe
 
           - target: x86_64-unknown-freebsd
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-x86_64-unknown-freebsd.tar.gz
+            name: prometheus_wireguard_exporter-x86_64-unknown-freebsd
 
     runs-on: ${{ matrix.os }}
     continue-on-error: true
@@ -100,7 +100,6 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           strip prometheus_wireguard_exporter.exe
-          7z a ../../../${{ matrix.name }} prometheus_wireguard_exporter.exe
           cd -
 
       - name: Post Build | Prepare artifacts [-nix]
@@ -108,7 +107,6 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           strip prometheus_wireguard_exporter || true
-          tar czvf ../../../${{ matrix.name }} prometheus_wireguard_exporter
           cd -
 
       - name: Deploy | Upload artifacts
