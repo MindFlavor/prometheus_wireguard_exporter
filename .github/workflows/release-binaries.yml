@@ -11,7 +11,7 @@ jobs:
   github_build:
     name: Build release binaries
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -63,7 +63,7 @@ jobs:
             name: prometheus_wireguard_exporter-x86_64-unknown-freebsd
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
+    continue-on-error: false
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v2.3.4
