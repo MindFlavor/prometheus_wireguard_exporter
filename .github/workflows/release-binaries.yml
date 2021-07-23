@@ -30,9 +30,13 @@ jobs:
             os: ubuntu-latest
             name: prometheus_wireguard_exporter-aarch64-unknown-linux-musl
 
-          - target: arm-unknown-linux-musleabihf
+          - target: arm-unknown-linux-musleabi
             os: ubuntu-latest
-            name: prometheus_wireguard_exporter-arm-unknown-linux-musleabihf
+            name: prometheus_wireguard_exporter-arm-unknown-linux-musleabi
+
+          - target: armv7-unknown-linux-musleabi
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-armv7-unknown-linux-musleabi
 
           - target: x86_64-apple-darwin
             os: macOS-latest
