@@ -147,7 +147,14 @@ jobs:
         run: ls -R
 
       - name: Setup | Create Checksum files
-        run: for file in prometheus_wireguard_exporter-*/prometheus_wireguard_exporter-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
+        run: |
+          for DIR in prometheus_wireguard_exporter-*
+          do
+            pushd "$DIR" || continue
+            FILE="$(echo prometheus_wireguard_exporter-*)"
+            sha256sum "$FILE" > "$FILE.sha256"
+            popd || exit
+          done
 
       # - name: Setup | Release notes
       #   run: |
