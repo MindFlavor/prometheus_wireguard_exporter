@@ -33,4 +33,4 @@ prometheus_exporter_base = { version       = "1.2", features = ["hyper_server"] 
 regex                    = "1.5.4"
 
 [dev-dependencies]
-clippy = "*"
+clippy = "0.0"
