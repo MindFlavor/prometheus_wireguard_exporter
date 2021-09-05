@@ -120,6 +120,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .arg(
             Arg::with_name("addr")
                 .short("l")
+                .long("address")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_ADDRESS")
                 .help("exporter address")
                 .default_value("0.0.0.0")
                 .takes_value(true),
@@ -127,6 +129,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .arg(
             Arg::with_name("port")
                 .short("p")
+                .long("port")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_PORT")
                 .help("exporter port")
                 .default_value("9586")
                 .takes_value(true),
@@ -134,39 +138,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .arg(
             Arg::with_name("verbose")
                 .short("v")
+                .long("verbose")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_VERBOSE_ENABLED")
                 .help("verbose logging")
-                .takes_value(false),
+                .default_value("false")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("prepend_sudo")
                 .short("a")
+                .long("prepend_sudo")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_PREPEND_SUDO_ENABLED")
                 .help("Prepend sudo to the wg show commands")
-                .takes_value(false),
+                .default_value("false")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("separate_allowed_ips")
                 .short("s")
+                .long("separate_allowed_ips")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_SEPARATE_ALLOWED_IPS_ENABLED")
                 .help("separate allowed ips and ports")
-                .takes_value(false),
+                .default_value("false")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("export_remote_ip_and_port")
                 .short("r")
+                .long("export_remote_ip_and_port")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_EXPORT_REMOTE_IP_AND_PORT_ENABLED")
                 .help("exports peer's remote ip and port as labels (if available)")
-                .takes_value(false),
+                .default_value("false")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("extract_names_config_files")
                 .short("n")
+                .long("extract_names_config_files")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_CONFIG_FILE_NAMES")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment). Multiple files are supported.")
                 .multiple(true)
+                .use_delimiter(true)
                 .number_of_values(1)
                 .takes_value(true))
         .arg(
             Arg::with_name("interfaces")
                 .short("i")
+                .long("interfaces")
+                .env("PROMETHEUS_WIREGUARD_EXPORTER_INTERFACES")
                 .help("If set specifies the interface passed to the wg show command. It is relative to the same position config_file. In not specified, all will be passed.")
                 .multiple(true)
+                .use_delimiter(true)
                 .number_of_values(1)
                 .takes_value(true))
         .get_matches();
