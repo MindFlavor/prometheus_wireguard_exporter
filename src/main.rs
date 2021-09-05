@@ -33,7 +33,7 @@ async fn perform_request(
         .map(|files| {
             files // if we have values
                 .iter() // for each value
-                .map(|file| std::fs::read_to_string(&file as &str)) // read the contents into a String
+                .map(|file| std::fs::read_to_string(file as &str)) // read the contents into a String
                 .collect::<Result<Vec<String>, std::io::Error>>() // And transform it into a vec (stopping in case of errors)
         })
         .transpose()? // bail out if there was an error
@@ -194,7 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("using options: {:?}", options);
 
     let bind = matches.value_of("port").unwrap();
-    let bind = (&bind).parse::<u16>().expect("port must be a valid number");
+    let bind = bind.parse::<u16>().expect("port must be a valid number");
     let ip = matches.value_of("addr").unwrap().parse::<IpAddr>().unwrap();
     let addr = (ip, bind).into();
 
