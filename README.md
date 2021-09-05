@@ -22,6 +22,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
+* **BREAKING** From release [3.6.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.0) the exporter takes fallback configuration values from the environment variables. Thanks to [j_r0dd](https://github.com/jr0dd) for the idea. This changes how the exporter evaluates the command line parameters: make sure to consult the documentation on how to convert your command line to the new format. 
 * From release [3.5.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.5.1) the exporter supports multiple peer files. Thanks to [Tobias Krischer](https://github.com/tobikris) for the idea.
 * From release [3.5.0](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.5.0) the exporter supports the `friendly_json` tag. Entries prepended with the `friendly_json` tag will output all the entries in the specificed json as Prometheus attributes. Thanks to [DrProxyProSupport](https://github.com/iqdoctor) for the idea.
 * From release [3.4.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.4.0) the exporter supports prepending `sudo` to the `wg` command. This allows to run the exporter as a non root user (although sudoer without password). Thanks to [Jonas Seydel](https://github.com/Thor77) for the idea.
@@ -102,16 +103,18 @@ docker build -t mindflavor/prometheus_wireguard_exporter https://github.com/Mind
 
 Start the binary with `-h` to get the complete syntax. The parameters are:
 
-| Parameter | Mandatory | Valid values | Default | Accepts multiple occurrences? | Description |
-| -- | -- | -- | -- | -- | -- |
-| `-v` | no | `<switch>` | | No | Enable verbose mode.
-| `-a` | no | `<switch>` | | No | Prepends sudo to `wg` commands.
-| `-l` | no | any valid ip address | `0.0.0.0` | No | Specify the service address. This is the address your Prometheus instance should point to.
-| `-p` | no | any valid port number | `9586` | No | Specify the service port. This is the port your Prometheus instance should point to.
-| `-n` | no | path to the wireguard configuration file | | Yes | This flag adds the *friendly_name* attribute or the *friendly_json* attributes to the exported entries. See [Friendly tags](#friendly-tags) for more details. Multiple files are allowed (they will be merged as a single file in memory so avoid duplicates).
-| `-s` | no | `<switch>` | off | No | Enable the allowed ip + subnet split mode for the labels.
-| `-r` | no | `<switch>` | off | No | Exports peer's remote ip and port as labels (if available).
-| `-i` | no | your interface name(s) | `all` | Yes | Specifies the interface(s) passed to the `wg show <interface> dump` parameter. Multiple parameters are allowed.
+| Parameter | Env | Mandatory | Valid values | Default | Accepts multiple occurrences? | Description |
+| -- | -- | -- | -- | -- | -- | -- |
+| `-v` | `PROMETHEUS_WIREGUARD_EXPORTER_VERBOSE_ENABLED` | No | `true|false` | `false` | No | Enable verbose mode.
+| `-a` | `PROMETHEUS_WIREGUARD_EXPORTER_PREPEND_SUDO_ENABLED` | No | `true|false` | `false` | No | Prepends sudo to `wg` commands.
+| `-l` | `PROMETHEUS_WIREGUARD_EXPORTER_ADDRESS` | No | Any valid IP address | `0.0.0.0` | No | Specify the service address. This is the address your Prometheus instance should point to.
+| `-p` | `PROMETHEUS_WIREGUARD_EXPORTER_PORT` | No | Any valid port number | `9586` | No | Specify the service port. This is the port your Prometheus instance should point to.
+| `-n` | `PROMETHEUS_WIREGUARD_EXPORTER_CONFIG_FILE_NAMES` | No | Path to the wireguard configuration file | | Yes | This flag adds the *friendly_name* attribute or the *friendly_json* attributes to the exported entries. See [Friendly tags](#friendly-tags) for more details. Multiple files are allowed (they will be merged as a single file in memory so avoid duplicates).
+| `-s` | `PROMETHEUS_WIREGUARD_EXPORTER_SEPARATE_ALLOWED_IPS_ENABLED` | No | `true|false` | `false` | No | Enable the allowed ip + subnet split mode for the labels.
+| `-r` | `PROMETHEUS_WIREGUARD_EXPORTER_EXPORT_REMOTE_IP_AND_PORT_ENABLED` | No | `true|false` | `false` | No | Exports peer's remote ip and port as labels (if available).
+| `-i` | `PROMETHEUS_WIREGUARD_EXPORTER_INTERFACES` | No | Your interface name(s) | `all` | Yes | Specifies the interface(s) passed to the `wg show <interface> dump` parameter. Multiple parameters are allowed.
+
+Keep in mind that command line values take precedence over environment variables.
 
 Once started, the tool will listen on the specified port (or the default one, 9586, if not specified) and return a Prometheus valid response at the url `/metrics`. So to check if the tool is working properly simply browse the `http://localhost:9586/metrics` (or whichever port you choose).
 
