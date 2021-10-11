@@ -12,7 +12,9 @@ mod friendly_description;
 pub use friendly_description::*;
 use wireguard::WireGuard;
 mod exporter_error;
+mod metrics;
 mod wireguard_config;
+
 use prometheus_exporter_base::render_prometheus;
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -33,7 +35,7 @@ async fn perform_request(
         .map(|files| {
             files // if we have values
                 .iter() // for each value
-                .map(|file| std::fs::read_to_string(&file as &str)) // read the contents into a String
+                .map(|file| std::fs::read_to_string(file as &str)) // read the contents into a String
                 .collect::<Result<Vec<String>, std::io::Error>>() // And transform it into a vec (stopping in case of errors)
         })
         .transpose()? // bail out if there was an error
@@ -102,11 +104,8 @@ async fn perform_request(
     }
 
     if let Some(wg_accumulator) = wg_accumulator {
-        Ok(wg_accumulator.render_with_names(
-            peer_entry_hashmap.as_ref(),
-            options.separate_allowed_ips,
-            options.export_remote_ip_and_port,
-        ))
+        Ok(wg_accumulator
+            .render_with_names(peer_entry_hashmap.as_ref(), &options.metric_attributes))
     } else {
         panic!();
     }
@@ -156,6 +155,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("handshake_timeout_seconds")
+                .short("t")
+                .help("Handshake timeout to determine if host is still connected")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("extract_names_config_files")
                 .short("n")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment). Multiple files are supported.")
@@ -194,7 +199,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("using options: {:?}", options);
 
     let bind = matches.value_of("port").unwrap();
-    let bind = (&bind).parse::<u16>().expect("port must be a valid number");
+    let bind = bind.parse::<u16>().expect("port must be a valid number");
     let ip = matches.value_of("addr").unwrap().parse::<IpAddr>().unwrap();
     let addr = (ip, bind).into();
 
