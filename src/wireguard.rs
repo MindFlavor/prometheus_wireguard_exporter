@@ -1,13 +1,15 @@
 use crate::exporter_error::ExporterError;
+use crate::metrics::{EndpointMetrics, InterfaceMetrics, MetricAttributeOptions};
 use crate::wireguard_config::PeerEntryHashMap;
 use crate::FriendlyDescription;
 use log::{debug, trace};
-use prometheus_exporter_base::{MetricType, PrometheusInstance, PrometheusMetric};
+use prometheus_exporter_base::PrometheusInstance;
 use regex::Regex;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const EMPTY: &str = "(none)";
 
@@ -152,11 +154,11 @@ impl TryFrom<&str> for WireGuard {
 impl WireGuard {
     pub fn merge(&mut self, merge_from: &WireGuard) {
         for (interface_name, endpoints_to_merge) in merge_from.interfaces.iter() {
-            if let Some(endpoints) = self.interfaces.get_mut(&interface_name as &str) {
-                endpoints.extend_from_slice(&endpoints_to_merge);
+            if let Some(endpoints) = self.interfaces.get_mut(interface_name) {
+                endpoints.extend_from_slice(endpoints_to_merge);
             } else {
                 let mut new_vec = Vec::new();
-                new_vec.extend_from_slice(&endpoints_to_merge);
+                new_vec.extend_from_slice(endpoints_to_merge);
                 self.interfaces.insert(interface_name.to_owned(), new_vec);
             }
         }
@@ -165,27 +167,14 @@ impl WireGuard {
     pub(crate) fn render_with_names(
         &self,
         pehm: Option<&PeerEntryHashMap>,
-        split_allowed_ips: bool,
-        export_remote_ip_and_port: bool,
+        metric_attribute_options: &MetricAttributeOptions,
     ) -> String {
-        debug!("WireGuard::render_with_names(self == {:?}, pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called", self, pehm, split_allowed_ips,export_remote_ip_and_port);
+        debug!("WireGuard::render_with_names(self == {:?}, pehm == {:?}, split_allowed_ips == {:?}, export_remote_ip_and_port == {:?} called",
+            self, pehm, metric_attribute_options.split_allowed_ips, metric_attribute_options.export_remote_ip_and_port);
 
         // these are the exported counters
-        let mut pc_sent_bytes_total = PrometheusMetric::build()
-            .with_name("wireguard_sent_bytes_total")
-            .with_metric_type(MetricType::Counter)
-            .with_help("Bytes sent to the peer")
-            .build();
-        let mut pc_received_bytes_total = PrometheusMetric::build()
-            .with_name("wireguard_received_bytes_total")
-            .with_metric_type(MetricType::Counter)
-            .with_help("Bytes received from the peer")
-            .build();
-        let mut pc_latest_handshake = PrometheusMetric::build()
-            .with_name("wireguard_latest_handshake_seconds")
-            .with_metric_type(MetricType::Gauge)
-            .with_help("Seconds from the last handshake")
-            .build();
+        let mut endpoint_metrics = EndpointMetrics::new();
+        let mut interface_metrics = InterfaceMetrics::new();
 
         // Here we make sure we process the interfaces in the
         // lexicographical order.
@@ -202,131 +191,207 @@ impl WireGuard {
         interfaces_sorted.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap());
 
         for (interface, endpoints) in interfaces_sorted.into_iter() {
-            for endpoint in endpoints {
-                // only show remote endpoints
-                if let Endpoint::Remote(ep) = endpoint {
-                    debug!("WireGuard::render_with_names ep == {:?}", ep);
+            let remote_endpoints: Vec<&RemoteEndpoint> = endpoints
+                .iter()
+                .map(|endpoint| {
+                    self.populate_remote_endpoint_metrics(
+                        pehm,
+                        interface,
+                        endpoint,
+                        &mut endpoint_metrics,
+                        metric_attribute_options,
+                    )
+                })
+                .flatten()
+                .collect();
 
-                    // we store in attributes_owned the ownership of the values in order to
-                    // store in attibutes their references. attributes_owned is onyl
-                    // needed for separate ip+subnet
-                    let mut attributes_owned: Vec<(String, String)> = Vec::new();
-                    let mut attributes: Vec<(&str, &str)> = vec![
-                        ("interface", interface),
-                        ("public_key", &ep.public_key),
-                    ];
-
-                    if split_allowed_ips {
-                        let v_ip_and_subnet: Vec<(&str, &str)> = ep
-                            .allowed_ips
-                            .split(',')
-                            .map(|ip_and_subnet| {
-                                debug!(
-                                    "WireGuard::render_with_names ip_and_subnet == {:?}",
-                                    ip_and_subnet
-                                );
-                                let tokens: Vec<&str> = ip_and_subnet.split('/').collect();
-                                debug!("WireGuard::render_with_names tokens == {:?}", tokens);
-                                let addr = tokens[0];
-                                let subnet = tokens[1];
-                                (addr, subnet)
-                            })
-                            .collect();
-
-                        for (idx, (ip, subnet)) in v_ip_and_subnet.iter().enumerate() {
-                            attributes_owned
-                                .push((format!("allowed_ip_{}", idx), (*ip).to_string()));
-                            attributes_owned
-                                .push((format!("allowed_subnet_{}", idx), (*subnet).to_string()));
-                        }
-                        debug!(
-                            "WireGuard::render_with_names attributes == {:?}",
-                            attributes
-                        );
-                    } else {
-                        attributes.push(("allowed_ips", &ep.allowed_ips));
-                    }
-
-                    // let's add the friendly_name attribute if present
-                    // and has meaniningful value
-                    if let Some(pehm) = pehm {
-                        if let Some(ep_friendly_description) = pehm.get(&ep.public_key as &str) {
-                            if let Some(friendly_description) =
-                                &ep_friendly_description.friendly_description
-                            {
-                                match friendly_description {
-                                    FriendlyDescription::Name(name) => {
-                                        attributes.push(("friendly_name", name));
-                                    }
-                                    FriendlyDescription::Json(json) => {
-                                        // let's put them in a intermediate vector and then sort it
-                                        let mut v_temp = Vec::new();
-
-                                        json.iter().for_each(|(header, value)| {
-                                            //attributes_owned
-                                            v_temp.push((
-                                                header.to_string(),
-                                                match value {
-                                                    serde_json::Value::Number(number) => {
-                                                        number.to_string()
-                                                    }
-                                                    serde_json::Value::String(s) => s.to_owned(),
-                                                    serde_json::Value::Bool(b) => b.to_string(),
-                                                    _ => panic!("unsupported json value"),
-                                                },
-                                            ));
-                                        });
-
-                                        v_temp.sort_by(|(k0, _), (k1, _)| k0.cmp(k1));
-
-                                        v_temp
-                                            .into_iter()
-                                            .for_each(|item| attributes_owned.push(item));
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if export_remote_ip_and_port {
-                        if let Some(r_ip) = &ep.remote_ip {
-                            attributes.push(("remote_ip", &r_ip));
-                        }
-                        if let Some(r_port) = &ep.remote_port {
-                            attributes_owned.push(("remote_port".to_string(), r_port.to_string()));
-                        }
-                    }
-
-                    for (label, val) in &attributes_owned {
-                        attributes.push((label, val));
-                    }
-
-                    let mut instance = PrometheusInstance::new();
-                    for (h, v) in attributes {
-                        instance = instance.with_label(h, v);
-                    }
-
-                    pc_sent_bytes_total
-                        .render_and_append_instance(&instance.clone().with_value(ep.sent_bytes))
-                        .render();
-
-                    pc_received_bytes_total
-                        .render_and_append_instance(&instance.clone().with_value(ep.received_bytes))
-                        .render();
-
-                    pc_latest_handshake.render_and_append_instance(
-                        &instance.with_value(ep.latest_handshake.into()),
-                    );
-                }
-            }
+            self.populate_interface_metrics(
+                interface,
+                &remote_endpoints,
+                &mut interface_metrics,
+                metric_attribute_options,
+            );
         }
 
         format!(
-            "{}\n{}\n{}",
-            pc_sent_bytes_total.render(),
-            pc_received_bytes_total.render(),
-            pc_latest_handshake.render()
+            "{}\n{}\n{}\n{}",
+            endpoint_metrics.pc_sent_bytes_total.render(),
+            endpoint_metrics.pc_received_bytes_total.render(),
+            endpoint_metrics.pc_latest_handshake.render(),
+            interface_metrics.total_peers_gauge.render()
         )
+    }
+
+    pub(self) fn populate_interface_metrics(
+        &self,
+        interface: &str,
+        remote_endpoints: &[&RemoteEndpoint],
+        interface_metrics: &mut InterfaceMetrics,
+        metric_attribute_options: &MetricAttributeOptions,
+    ) {
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+
+        let instance = PrometheusInstance::new().with_label("interface", interface);
+        if let Some(handshake_timeout_seconds) = metric_attribute_options.handshake_timeout_seconds
+        {
+            let connected_endpoints: Vec<&&RemoteEndpoint> = remote_endpoints
+                .iter()
+                .filter(|&endpoint| {
+                    since_the_epoch - endpoint.latest_handshake < handshake_timeout_seconds
+                })
+                .collect();
+
+            let seen_recently = instance
+                .clone()
+                .with_label("seen_recently", "true")
+                .with_value(connected_endpoints.len());
+            interface_metrics.connected_peers(&seen_recently);
+
+            let not_seen_recently = instance
+                .clone()
+                .with_label("seen_recently", "false")
+                .with_value(remote_endpoints.len() - connected_endpoints.len());
+
+            interface_metrics.connected_peers(&not_seen_recently);
+        } else {
+            let set = instance.with_value(remote_endpoints.len());
+            interface_metrics.connected_peers(&set);
+        }
+    }
+
+    pub(self) fn populate_remote_endpoint_metrics<'a>(
+        &self,
+        pehm: Option<&PeerEntryHashMap>,
+        interface: &str,
+        endpoint: &'a Endpoint,
+        endpoint_metrics: &mut EndpointMetrics,
+        metric_attribute_options: &MetricAttributeOptions,
+    ) -> Option<&'a RemoteEndpoint> {
+        // only show remote endpoints
+        if let Endpoint::Remote(ep) = endpoint {
+            debug!("WireGuard::render_with_names ep == {:?}", ep);
+
+            // we store in attributes_owned the ownership of the values in order to
+            // store in attributes their references. attributes_owned is only
+            // needed for separate ip+subnet
+            let mut attributes_owned: Vec<(String, String)> = Vec::new();
+            let mut attributes: Vec<(&str, &str)> =
+                vec![("interface", interface), ("public_key", &ep.public_key)];
+
+            if metric_attribute_options.split_allowed_ips {
+                struct NetworkingAddress<'a> {
+                    ip: &'a str,
+                    subnet: &'a str,
+                }
+                let networking_addresses: Vec<NetworkingAddress> = ep
+                    .allowed_ips
+                    .split(',')
+                    .map(|ip_and_subnet| {
+                        debug!(
+                            "WireGuard::render_with_names ip_and_subnet == {:?}",
+                            ip_and_subnet
+                        );
+                        let tokens: Vec<&str> = ip_and_subnet.split('/').collect();
+                        debug!("WireGuard::render_with_names tokens == {:?}", tokens);
+
+                        match (tokens.first(), tokens.last()) {
+                            (Some(ip), Some(subnet)) => Some(NetworkingAddress { ip, subnet }),
+                            _ => None,
+                        }
+                    })
+                    .flatten()
+                    .collect();
+
+                for (idx, networking_address) in networking_addresses.iter().enumerate() {
+                    attributes_owned.push((
+                        format!("allowed_ip_{}", idx),
+                        networking_address.ip.to_string(),
+                    ));
+                    attributes_owned.push((
+                        format!("allowed_subnet_{}", idx),
+                        networking_address.subnet.to_string(),
+                    ));
+                }
+                debug!(
+                    "WireGuard::render_with_names attributes == {:?}",
+                    attributes
+                );
+            } else {
+                attributes.push(("allowed_ips", &ep.allowed_ips));
+            }
+
+            // let's add the friendly_name attribute if present
+            // and has meaniningful value
+            if let Some(pehm) = pehm {
+                if let Some(ep_friendly_description) = pehm.get(&ep.public_key as &str) {
+                    if let Some(friendly_description) =
+                        &ep_friendly_description.friendly_description
+                    {
+                        match friendly_description {
+                            FriendlyDescription::Name(name) => {
+                                attributes.push(("friendly_name", name));
+                            }
+                            FriendlyDescription::Json(json) => {
+                                // let's put them in a intermediate vector and then sort it
+                                let mut v_temp = Vec::new();
+
+                                json.iter().for_each(|(header, value)| {
+                                    //attributes_owned
+                                    v_temp.push((
+                                        header.to_string(),
+                                        match value {
+                                            serde_json::Value::Number(number) => number.to_string(),
+                                            serde_json::Value::String(s) => s.to_owned(),
+                                            serde_json::Value::Bool(b) => b.to_string(),
+                                            _ => {
+                                                debug!("WireGuard::unsupported json value");
+                                                "unsupported_json_value".to_owned()
+                                            }
+                                        },
+                                    ));
+                                });
+
+                                v_temp.sort_by(|(k0, _), (k1, _)| k0.cmp(k1));
+
+                                v_temp
+                                    .into_iter()
+                                    .for_each(|item| attributes_owned.push(item));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if metric_attribute_options.export_remote_ip_and_port {
+                if let Some(r_ip) = &ep.remote_ip {
+                    attributes.push(("remote_ip", r_ip));
+                }
+                if let Some(r_port) = &ep.remote_port {
+                    attributes_owned.push(("remote_port".to_string(), r_port.to_string()));
+                }
+            }
+
+            for (label, val) in &attributes_owned {
+                attributes.push((label, val));
+            }
+
+            let mut instance = PrometheusInstance::new();
+            for (h, v) in attributes {
+                instance = instance.with_label(h, v);
+            }
+
+            endpoint_metrics.sent_bytes_total(&instance, ep.sent_bytes);
+            endpoint_metrics.received_bytes_total(&instance, ep.received_bytes);
+            endpoint_metrics.latest_handshake(&instance, ep.latest_handshake.into());
+
+            Some(ep)
+        } else {
+            None
+        }
     }
 }
 
@@ -399,7 +464,12 @@ wg0\tsUsR6xufQQ8Tf0FuyY9tfEeYdhVMeFelr4ZMUrj+B0E=\t(none)\t10.211.123.128:51820\
 
         let pe = PeerEntryHashMap::new();
 
-        let s = a.render_with_names(Some(&pe), true, true);
+        let metric_attribute_options = MetricAttributeOptions {
+            split_allowed_ips: true,
+            export_remote_ip_and_port: true,
+            handshake_timeout_seconds: None,
+        };
+        let s = a.render_with_names(Some(&pe), &metric_attribute_options);
         println!("{}", s);
 
         let s_ok = "# HELP wireguard_sent_bytes_total Bytes sent to the peer
@@ -461,6 +531,10 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"yZOoC2t6pBcXvo
 wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"yjeBkrZqUThSSHySFzWCjxAH8cxtiWSI2I8JFD6t1UM=\",remote_ip=\"10.211.123.126\",allowed_ip_0=\"10.90.0.5\",allowed_subnet_0=\"32\",remote_port=\"51820\"} 1574770705
 wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"HtOSi37ALMnSkeAFqeWYZqlBnZqAJERhb5o/i3ZPEFI=\",remote_ip=\"10.211.123.127\",allowed_ip_0=\"10.90.0.17\",allowed_subnet_0=\"32\",remote_port=\"51820\"} 1574770783
 wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0FuyY9tfEeYdhVMeFelr4ZMUrj+B0E=\",remote_ip=\"10.211.123.128\",allowed_ip_0=\"10.90.0.18\",allowed_subnet_0=\"32\",remote_port=\"51820\"} 1574770693
+
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{interface=\"wg0\"} 17
 ";
         assert_eq!(s, s_ok);
     }
@@ -489,13 +563,33 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
     #[test]
     fn test_parse_and_serialize() {
         let a = WireGuard::try_from(TEXT).unwrap();
-        let s = a.render_with_names(None, false, true);
+        let metric_attribute_options = MetricAttributeOptions {
+            split_allowed_ips: false,
+            export_remote_ip_and_port: true,
+            handshake_timeout_seconds: None,
+        };
+        let s = a.render_with_names(None, &metric_attribute_options);
         println!("{}", s);
     }
 
     #[test]
     fn test_render_to_prometheus_simple() {
-        const REF : &str= "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500\n";
+        const REF : &str= "# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000
+
+# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000
+
+# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
+# TYPE wireguard_latest_handshake_seconds gauge
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"to_change\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500
+
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{interface=\"Pippo\"} 1
+";
 
         let re = Endpoint::Remote(RemoteEndpoint {
             public_key: "test".to_owned(),
@@ -515,22 +609,182 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         v.push(re);
         wg.interfaces.insert("Pippo".to_owned(), v);
 
-        let prometheus = wg.render_with_names(None, false, true);
+        let metric_attribute_options = MetricAttributeOptions {
+            split_allowed_ips: false,
+            export_remote_ip_and_port: true,
+            handshake_timeout_seconds: None,
+        };
+        let prometheus = wg.render_with_names(None, &metric_attribute_options);
 
         assert_eq!(prometheus, REF);
     }
 
+    use crate::wireguard_config::PeerEntry;
+
+    #[test]
+    fn test_render_to_prometheus_with_handshake_timeout() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+
+        let handshake_timeout = 30;
+
+        let re1 = RemoteEndpoint {
+            public_key: "test".to_owned(),
+            remote_ip: Some("remote_ip".to_owned()),
+            remote_port: Some(100),
+            allowed_ips: "10.0.0.2/32,fd86:ea04:::4/128".to_owned(),
+            latest_handshake: since_the_epoch - handshake_timeout - 1,
+            sent_bytes: 1000,
+            received_bytes: 5000,
+            persistent_keepalive: false,
+        };
+        let re2 = RemoteEndpoint {
+            public_key: "second_test".to_owned(),
+            remote_ip: Some("remote_ip".to_owned()),
+            remote_port: Some(100),
+            allowed_ips: "10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16".to_owned(),
+            latest_handshake: since_the_epoch,
+            sent_bytes: 14,
+            received_bytes: 1_000_000_000,
+            persistent_keepalive: false,
+        };
+
+        let handshake_timeout_output = format!("# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter
+wireguard_sent_bytes_total{{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"}} 1000
+wireguard_sent_bytes_total{{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"}} 14
+
+# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter
+wireguard_received_bytes_total{{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"}} 5000
+wireguard_received_bytes_total{{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"}} 1000000000
+
+# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
+# TYPE wireguard_latest_handshake_seconds gauge
+wireguard_latest_handshake_seconds{{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"}} {}
+wireguard_latest_handshake_seconds{{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"}} {}
+
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{{interface=\"Pippo\",seen_recently=\"true\"}} 1
+wireguard_peers_total{{interface=\"Pippo\",seen_recently=\"false\"}} 1
+", re1.latest_handshake, re2.latest_handshake);
+
+        let mut wg = WireGuard {
+            interfaces: HashMap::new(),
+        };
+
+        let mut v = Vec::new();
+        v.push(Endpoint::Remote(re1));
+        v.push(Endpoint::Remote(re2));
+        wg.interfaces.insert("Pippo".to_owned(), v);
+
+        let mut pehm = PeerEntryHashMap::new();
+        let pe = PeerEntry {
+            public_key: "second_test",
+            allowed_ips: "ignored",
+            friendly_description: Some(FriendlyDescription::Name(
+                "this is my friendly name".into(),
+            )),
+        };
+        pehm.insert(pe.public_key, pe.clone());
+        {
+            let metric_attribute_options = MetricAttributeOptions {
+                split_allowed_ips: false,
+                export_remote_ip_and_port: true,
+                handshake_timeout_seconds: Some(handshake_timeout),
+            };
+            let prometheus = wg.render_with_names(Some(&pehm), &metric_attribute_options);
+            assert_eq!(prometheus, handshake_timeout_output);
+        }
+    }
+
     #[test]
     fn test_render_to_prometheus_complex() {
-        use crate::wireguard_config::PeerEntry;
+        const REF :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 14
 
-        const REF :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 14\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000000000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 50\n";
+# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000000000
 
-        const REF_SPLIT :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 14\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 1000000000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 50\n";
+# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
+# TYPE wireguard_latest_handshake_seconds gauge
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",remote_port=\"100\"} 50
 
-        const REF_SPLIT_NO_REMOTE :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 14\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 1000000000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 50\n";
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{interface=\"Pippo\"} 2
+";
 
-        const REF_JSON :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer\n# TYPE wireguard_sent_bytes_total counter\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000\nwireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"Coordinator\",id=\"482217555\",last_name=\"DrProxy.me\",username=\"DrProxyMeCoordinator\",remote_port=\"100\"} 14\n\n# HELP wireguard_received_bytes_total Bytes received from the peer\n# TYPE wireguard_received_bytes_total counter\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000\nwireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"Coordinator\",id=\"482217555\",last_name=\"DrProxy.me\",username=\"DrProxyMeCoordinator\",remote_port=\"100\"} 1000000000\n\n# HELP wireguard_latest_handshake_seconds Seconds from the last handshake\n# TYPE wireguard_latest_handshake_seconds gauge\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500\nwireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"Coordinator\",id=\"482217555\",last_name=\"DrProxy.me\",username=\"DrProxyMeCoordinator\",remote_port=\"100\"} 50\n";
+        const REF_SPLIT :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 1000
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 14
+
+# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 5000
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 1000000000
+
+# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
+# TYPE wireguard_latest_handshake_seconds gauge
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",remote_port=\"100\"} 500
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",remote_ip=\"remote_ip\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\",remote_port=\"100\"} 50
+
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{interface=\"Pippo\"} 2
+";
+
+        const REF_SPLIT_NO_REMOTE :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 1000
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 14
+
+# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 5000
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 1000000000
+
+# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
+# TYPE wireguard_latest_handshake_seconds gauge
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ip_0=\"10.0.0.2\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\"} 500
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",friendly_name=\"this is my friendly name\",allowed_ip_0=\"10.0.0.4\",allowed_subnet_0=\"32\",allowed_ip_1=\"fd86:ea04:::4\",allowed_subnet_1=\"128\",allowed_ip_2=\"192.168.0.0\",allowed_subnet_2=\"16\"} 50
+
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{interface=\"Pippo\"} 2
+";
+
+        const REF_JSON :&'static str = "# HELP wireguard_sent_bytes_total Bytes sent to the peer
+# TYPE wireguard_sent_bytes_total counter
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 1000
+wireguard_sent_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"Coordinator\",id=\"482217555\",last_name=\"DrProxy.me\",username=\"DrProxyMeCoordinator\",remote_port=\"100\"} 14
+
+# HELP wireguard_received_bytes_total Bytes received from the peer
+# TYPE wireguard_received_bytes_total counter
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 5000
+wireguard_received_bytes_total{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"Coordinator\",id=\"482217555\",last_name=\"DrProxy.me\",username=\"DrProxyMeCoordinator\",remote_port=\"100\"} 1000000000
+
+# HELP wireguard_latest_handshake_seconds Seconds from the last handshake
+# TYPE wireguard_latest_handshake_seconds gauge
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"test\",allowed_ips=\"10.0.0.2/32,fd86:ea04:::4/128\",remote_ip=\"remote_ip\",remote_port=\"100\"} 500
+wireguard_latest_handshake_seconds{interface=\"Pippo\",public_key=\"second_test\",allowed_ips=\"10.0.0.4/32,fd86:ea04:::4/128,192.168.0.0/16\",remote_ip=\"remote_ip\",auth_date=\"1614869789\",first_name=\"Coordinator\",id=\"482217555\",last_name=\"DrProxy.me\",username=\"DrProxyMeCoordinator\",remote_port=\"100\"} 50
+
+# HELP wireguard_peers_total Total number of peers
+# TYPE wireguard_peers_total gauge
+wireguard_peers_total{interface=\"Pippo\"} 2
+";
 
         let re1 = Endpoint::Remote(RemoteEndpoint {
             public_key: "test".to_owned(),
@@ -572,14 +826,36 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         };
         pehm.insert(pe.public_key, pe.clone());
 
-        let prometheus = wg.render_with_names(Some(&pehm), false, true);
-        assert_eq!(prometheus, REF);
+        {
+            let metric_attribute_options = MetricAttributeOptions {
+                split_allowed_ips: false,
+                export_remote_ip_and_port: true,
+                handshake_timeout_seconds: None,
+            };
 
-        let prometheus = wg.render_with_names(Some(&pehm), true, true);
-        assert_eq!(prometheus, REF_SPLIT);
+            let prometheus = wg.render_with_names(Some(&pehm), &metric_attribute_options);
+            assert_eq!(prometheus, REF);
+        }
 
-        let prometheus = wg.render_with_names(Some(&pehm), true, false);
-        assert_eq!(prometheus, REF_SPLIT_NO_REMOTE);
+        {
+            let metric_attribute_options = MetricAttributeOptions {
+                split_allowed_ips: true,
+                export_remote_ip_and_port: true,
+                handshake_timeout_seconds: None,
+            };
+            let prometheus = wg.render_with_names(Some(&pehm), &metric_attribute_options);
+            assert_eq!(prometheus, REF_SPLIT);
+        }
+
+        {
+            let metric_attribute_options = MetricAttributeOptions {
+                split_allowed_ips: true,
+                export_remote_ip_and_port: false,
+                handshake_timeout_seconds: None,
+            };
+            let prometheus = wg.render_with_names(Some(&pehm), &metric_attribute_options);
+            assert_eq!(prometheus, REF_SPLIT_NO_REMOTE);
+        }
 
         // second test
         let mut pehm = PeerEntryHashMap::new();
@@ -606,7 +882,12 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
         };
         pehm.insert(pe.public_key, pe.clone());
 
-        let prometheus = wg.render_with_names(Some(&pehm), false, true);
+        let metric_attribute_options = MetricAttributeOptions {
+            split_allowed_ips: false,
+            export_remote_ip_and_port: true,
+            handshake_timeout_seconds: None,
+        };
+        let prometheus = wg.render_with_names(Some(&pehm), &metric_attribute_options);
         assert_eq!(prometheus, REF_JSON);
     }
 }
