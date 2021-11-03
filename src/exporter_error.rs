@@ -37,7 +37,7 @@ pub enum ExporterError {
     UTF8 { e: std::string::FromUtf8Error },
 
     #[error("JSON format error: {}", e)]
-    JSON { e: serde_json::error::Error },
+    Json { e: serde_json::error::Error },
 
     #[error("IO Error: {}", e)]
     IO { e: std::io::Error },
@@ -84,7 +84,7 @@ impl From<std::string::FromUtf8Error> for ExporterError {
 
 impl From<serde_json::error::Error> for ExporterError {
     fn from(e: serde_json::error::Error) -> Self {
-        ExporterError::JSON { e }
+        ExporterError::Json { e }
     }
 }
 

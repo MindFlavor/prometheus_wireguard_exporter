@@ -28,7 +28,7 @@ fn after_char_strip_comment(s: &str, c_split: char) -> &str {
     let s = after_char(s, c_split);
 
     if let Some(idx) = s.find('#') {
-        &s[..idx].trim()
+        s[..idx].trim()
     } else {
         s
     }
@@ -146,7 +146,7 @@ pub(crate) fn peer_entry_hashmap_try_from(
     debug!("peer_entry_hashmap_try_from v_blocks == {:?}", v_blocks);
 
     for block in &v_blocks {
-        let p: PeerEntry = PeerEntry::try_from(&block as &[&str])?;
+        let p: PeerEntry = PeerEntry::try_from(block as &[&str])?;
         hm.insert(p.public_key, p);
     }
 
