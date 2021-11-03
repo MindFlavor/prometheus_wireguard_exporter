@@ -152,11 +152,11 @@ impl TryFrom<&str> for WireGuard {
 impl WireGuard {
     pub fn merge(&mut self, merge_from: &WireGuard) {
         for (interface_name, endpoints_to_merge) in merge_from.interfaces.iter() {
-            if let Some(endpoints) = self.interfaces.get_mut(&interface_name as &str) {
-                endpoints.extend_from_slice(&endpoints_to_merge);
+            if let Some(endpoints) = self.interfaces.get_mut(interface_name as &str) {
+                endpoints.extend_from_slice(endpoints_to_merge);
             } else {
                 let mut new_vec = Vec::new();
-                new_vec.extend_from_slice(&endpoints_to_merge);
+                new_vec.extend_from_slice(endpoints_to_merge);
                 self.interfaces.insert(interface_name.to_owned(), new_vec);
             }
         }
@@ -211,10 +211,8 @@ impl WireGuard {
                     // store in attibutes their references. attributes_owned is onyl
                     // needed for separate ip+subnet
                     let mut attributes_owned: Vec<(String, String)> = Vec::new();
-                    let mut attributes: Vec<(&str, &str)> = vec![
-                        ("interface", interface),
-                        ("public_key", &ep.public_key),
-                    ];
+                    let mut attributes: Vec<(&str, &str)> =
+                        vec![("interface", interface), ("public_key", &ep.public_key)];
 
                     if split_allowed_ips {
                         let v_ip_and_subnet: Vec<(&str, &str)> = ep
@@ -290,7 +288,7 @@ impl WireGuard {
 
                     if export_remote_ip_and_port {
                         if let Some(r_ip) = &ep.remote_ip {
-                            attributes.push(("remote_ip", &r_ip));
+                            attributes.push(("remote_ip", r_ip));
                         }
                         if let Some(r_port) = &ep.remote_port {
                             attributes_owned.push(("remote_port".to_string(), r_port.to_string()));
