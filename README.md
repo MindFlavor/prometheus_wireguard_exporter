@@ -10,7 +10,7 @@
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
 [![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.5.1.svg)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.5.1.svg)
 
-![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/workflows/Buildx%20latest/badge.svg)
+[![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/actions/workflows/docker.yml/badge.svg)](https://github.com/qdm12/godevcontainer/actions/workflows/docker.yml)
 
 [![dockeri.co](https://dockeri.co/image/mindflavor/prometheus-wireguard-exporter)](https://hub.docker.com/r/mindflavor/prometheus-wireguard-exporter)
 
