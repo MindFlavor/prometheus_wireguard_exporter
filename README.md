@@ -49,6 +49,8 @@ Coming soon, subcribe to [#59](https://github.com/MindFlavor/prometheus_wireguar
     docker run -d --net=host --cap-add=NET_ADMIN --name wgexporter mindflavor/prometheus-wireguard-exporter
     ```
 
+    ⚠️ If you encounter time issues on your 32 bit operating system, [check this](https://wiki.alpinelinux.org/wiki/Release_Notes_for_Alpine_3.13.0#time64_requirements)
+
 1. Check it's up by visiting [http://localhost:9586/metrics](http://localhost:9586/metrics)
 
 You can then update the image with
