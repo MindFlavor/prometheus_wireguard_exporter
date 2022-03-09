@@ -1,0 +1,188 @@
+name: Deploy binaries and create release
+on:
+  release:
+    types:
+      - published
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  github_build:
+    name: Build release binaries
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-x86_64-unknown-linux-gnu
+
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-x86_64-unknown-linux-musl
+
+          - target: i686-unknown-linux-musl
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-i686-unknown-linux-musl
+
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-aarch64-unknown-linux-musl
+
+          - target: arm-unknown-linux-musleabi
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-arm-unknown-linux-musleabi
+
+          # - target: armv7-unknown-linux-musleabi
+          #   os: ubuntu-latest
+          #   name: prometheus_wireguard_exporter-armv7-unknown-linux-musleabi
+
+          - target: x86_64-apple-darwin
+            os: macOS-latest
+            name: prometheus_wireguard_exporter-x86_64-apple-darwin
+
+          # - target: aarch64-apple-darwin
+          #   os: macOS-latest
+          #   name: prometheus_wireguard_exporter-aarch64-apple-darwin
+
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: prometheus_wireguard_exporter-x86_64-pc-windows-msvc.exe
+
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            name: prometheus_wireguard_exporter-i686-pc-windows-msvc.exe
+
+          # - target: aarch64-pc-windows-msvc
+          #   os: windows-latest
+          #   name: prometheus_wireguard_exporter-aarch64-pc-windows-msvc.exe
+
+          - target: x86_64-unknown-freebsd
+            os: ubuntu-latest
+            name: prometheus_wireguard_exporter-x86_64-unknown-freebsd
+
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2.3.4
+
+      - name: Setup | Cache Cargo
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Setup | Rust
+        uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          target: ${{ matrix.target }}
+
+      - name: Build | Ubuntu
+        if: matrix.os != 'macOS-latest'
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+          args: --release --locked --target ${{ matrix.target }}
+          use-cross: ${{ matrix.os == 'ubuntu-latest' }}
+
+      - name: Build | macOS
+        if: matrix.os == 'macOS-latest'
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+          args: --release --locked --target ${{ matrix.target }}
+
+      - name: Post Build | Prepare artifacts [Windows]
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          strip prometheus_wireguard_exporter.exe
+          mv prometheus_wireguard_exporter.exe ../../../${{ matrix.name }}
+          cd -
+
+      - name: Post Build | Prepare artifacts [-nix]
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          strip prometheus_wireguard_exporter || true
+          mv prometheus_wireguard_exporter ../../../${{ matrix.name }}
+          cd -
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Deploy | Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  # Create GitHub release with Rust build targets and release notes
+  github_release:
+    name: Create GitHub Release
+    needs: github_build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2.3.4
+        with:
+          fetch-depth: 0
+
+      - name: Setup | Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.15.7"
+
+      - name: Setup | Download Artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Setup | Create Checksum files
+        run: |
+          for DIR in prometheus_wireguard_exporter-*
+          do
+            pushd "$DIR" || continue
+            FILE="$(echo prometheus_wireguard_exporter-*)"
+            sha256sum "$FILE" > "$FILE.sha256"
+            popd || exit
+          done
+
+      # - name: Setup | Release notes
+      #   run: |
+      #     GO111MODULE=on go get github.com/git-chglog/git-chglog/cmd/git-chglog@0.14.2
+      #     git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
+
+      - name: Build | Publish binaries
+        uses: alexellis/upload-assets@0.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          asset_paths: '["prometheus_wireguard_exporter-*/prometheus_wireguard_exporter-*"]'
+
+  # Publish prometheus_wireguard_exporter to Crates.io
+  # cargo_publish:
+  #   name: Publish Cargo Package
+  #   runs-on: ubuntu-latest
+  #   needs: github_release
+  #   steps:
+  #     - name: Setup | Checkout
+  #       uses: actions/checkout@v2.3.4
+
+  #     - name: Setup | Rust
+  #       uses: actions-rs/toolchain@v1.0.7
+  #       with:
+  #         toolchain: stable
+  #         profile: minimal
+  #         override: true
+
+  #     - name: Build | Publish
+  #       run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
