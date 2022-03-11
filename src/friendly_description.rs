@@ -14,7 +14,7 @@ impl<'a> TryFrom<(&'a str, &'a str)> for FriendlyDescription<'a> {
 
     fn try_from((header_name, value): (&'a str, &'a str)) -> Result<Self, Self::Error> {
         Ok(match header_name {
-            "friendly_name" => FriendlyDescription::Name(value.replace("\"", "\\\"").into()),
+            "friendly_name" => FriendlyDescription::Name(value.replace('\"', "\\\"").into()),
             "friendly_json" => {
                 let ret: HashMap<&str, serde_json::Value> = serde_json::from_str(value)?;
                 FriendlyDescription::Json(ret)

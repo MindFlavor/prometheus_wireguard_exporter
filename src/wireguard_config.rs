@@ -14,7 +14,7 @@ pub(crate) struct PeerEntry<'a> {
 
 fn after_char(s: &str, c_split: char) -> &str {
     let mut p: usize = 0;
-    for c in s.chars().into_iter() {
+    for c in s.chars() {
         if c == c_split {
             return &s[p + 1..];
         } else {
@@ -116,7 +116,7 @@ pub(crate) fn peer_entry_hashmap_try_from(
     let mut v_blocks = Vec::new();
     let mut cur_block: Option<Vec<&str>> = None;
 
-    for line in txt.lines().into_iter() {
+    for line in txt.lines() {
         if line.starts_with('[') {
             if let Some(inner_cur_block) = cur_block {
                 // close the block
@@ -160,7 +160,7 @@ mod tests {
     use super::FriendlyDescription;
     use super::*;
 
-    const TEXT: &'static str = "
+    const TEXT: &str = "
 ListenPort = 51820
 PrivateKey = my_super_secret_private_key
 # PreUp = iptables -t nat -A POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
@@ -204,7 +204,7 @@ PublicKey = 928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=
 AllowedIPs = 10.70.0.80/32
 ";
 
-    const TEXT_JSON: &'static str = "
+    const TEXT_JSON: &str = "
 ListenPort = 51820
 PrivateKey = my_super_secret_private_key
 # PreUp = iptables -t nat -A POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
@@ -248,7 +248,7 @@ PublicKey = 928vO9Lf4+Mo84cWu4k1oRyzf0AR7FTGoPKHGoTMSHk=
 AllowedIPs = 10.70.0.80/32
 ";
 
-    const TEXT_NOPK: &'static str = "
+    const TEXT_NOPK: &str = "
 ListenPort = 51820
 PrivateKey = my_super_secret_private_key
 # PreUp = iptables -t nat -A POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
@@ -269,7 +269,7 @@ PublicKey = L2UoJZN7RmEKsMmqaJgKG0m1S2Zs2wd2ptAf+kb3008=
 AllowedIPs = 10.70.0.4/32
 ";
 
-    const TEXT_AIP: &'static str = "
+    const TEXT_AIP: &str = "
 ListenPort = 51820
 PrivateKey = my_super_secret_private_key
 # PreUp = iptables -t nat -A POSTROUTING -s 10.70.0.0/24  -o enp7s0 -j MASQUERADE
