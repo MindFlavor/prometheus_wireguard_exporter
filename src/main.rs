@@ -1,3 +1,4 @@
+use anyhow::Context;
 //extern crate serde_json;
 use clap::{crate_authors, crate_name, crate_version, Arg};
 use hyper::{Body, Request};
@@ -26,6 +27,7 @@ async fn perform_request(
         Some(interfaces_str) => interfaces_str.clone(),
         None => vec!["all".to_owned()],
     };
+    log::trace!("interfaces_to_handle == {:?}", interfaces_to_handle);
 
     let peer_entry_contents = options
         .extract_names_config_files
@@ -36,7 +38,8 @@ async fn perform_request(
                 .map(|file| std::fs::read_to_string(file as &str)) // read the contents into a String
                 .collect::<Result<Vec<String>, std::io::Error>>() // And transform it into a vec (stopping in case of errors)
         })
-        .transpose()? // bail out if there was an error
+        .transpose()
+        .with_context(|| "failed to read peer config file")? // bail out if there was an error
         .map(|strings| strings.join("\n")); // now join the strings in a new string
 
     let peer_entry_hashmap = peer_entry_contents
@@ -114,12 +117,12 @@ async fn perform_request(
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let matches = clap::App::new(crate_name!())
+    let matches = clap::Command::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .arg(
-            Arg::with_name("addr")
-                .short("l")
+            Arg::new("addr")
+                .short('l')
                 .long("address")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_ADDRESS")
                 .help("exporter address")
@@ -127,8 +130,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_PORT")
                 .help("exporter port")
@@ -136,8 +139,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("verbose")
-                .short("v")
+            Arg::new("verbose")
+                .short('v')
                 .long("verbose")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_VERBOSE_ENABLED")
                 .help("verbose logging")
@@ -145,8 +148,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("prepend_sudo")
-                .short("a")
+            Arg::new("prepend_sudo")
+                .short('a')
                 .long("prepend_sudo")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_PREPEND_SUDO_ENABLED")
                 .help("Prepend sudo to the wg show commands")
@@ -154,8 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("separate_allowed_ips")
-                .short("s")
+            Arg::new("separate_allowed_ips")
+                .short('s')
                 .long("separate_allowed_ips")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_SEPARATE_ALLOWED_IPS_ENABLED")
                 .help("separate allowed ips and ports")
@@ -163,8 +166,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("export_remote_ip_and_port")
-                .short("r")
+            Arg::new("export_remote_ip_and_port")
+                .short('r')
                 .long("export_remote_ip_and_port")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_EXPORT_REMOTE_IP_AND_PORT_ENABLED")
                 .help("exports peer's remote ip and port as labels (if available)")
@@ -172,24 +175,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("extract_names_config_files")
-                .short("n")
+            Arg::new("extract_names_config_files")
+                .short('n')
                 .long("extract_names_config_files")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_CONFIG_FILE_NAMES")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment). Multiple files are supported.")
-                .multiple(true)
-                .use_delimiter(true)
-                .number_of_values(1)
+                .multiple_values(true)
+                .use_value_delimiter(true)
                 .takes_value(true))
         .arg(
-            Arg::with_name("interfaces")
-                .short("i")
+            Arg::new("interfaces")
+                .short('i')
                 .long("interfaces")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_INTERFACES")
                 .help("If set specifies the interface passed to the wg show command. It is relative to the same position config_file. In not specified, all will be passed.")
-                .multiple(true)
-                .use_delimiter(true)
-                .number_of_values(1)
+                .multiple_values(true)
+                .use_value_delimiter(true)
                 .takes_value(true))
         .get_matches();
 

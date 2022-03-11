@@ -9,7 +9,7 @@ pub(crate) struct Options {
 }
 
 impl Options {
-    pub fn from_claps(matches: &clap::ArgMatches<'_>) -> Options {
+    pub fn from_claps(matches: &clap::ArgMatches) -> Options {
         let options = Options {
             verbose: matches
                 .value_of("verbose")
