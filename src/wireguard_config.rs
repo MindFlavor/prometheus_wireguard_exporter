@@ -124,7 +124,7 @@ pub(crate) fn peer_entry_hashmap_try_from(
                 cur_block = None;
             }
 
-            if line == "[Peer]" {
+            if line == "[Peer]" || line == "[WireGuardPeer]" {
                 // start a new block
                 cur_block = Some(Vec::new());
             }
