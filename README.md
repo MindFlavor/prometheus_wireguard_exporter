@@ -8,7 +8,7 @@
 [![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.3)
 
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.3)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.2)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.3)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.3)
 
 [![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/actions/workflows/docker.yml/badge.svg)](https://github.com/qdm12/godevcontainer/actions/workflows/docker.yml)
 
@@ -22,7 +22,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
-* From release [3.6.2](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.2) the exporter automatically parses the systemd-networkd's peer syntax too (`[WireGuardPeer]` rather than `[Peer]`). Thanks to [mbonino](https://github.com/mbonino) for the PR (see https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/92).
+* From release [3.6.3](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.3) the exporter automatically parses the systemd-networkd's peer syntax too (`[WireGuardPeer]` rather than `[Peer]`). Thanks to [mbonino](https://github.com/mbonino) for the PR (see https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/92).
 * From release [3.6.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.1) the exporter correctly escapes the double quotes in `friendly_name`. Thanks to [Steven Wood](https://github.com/stvnw) for finding the bug in #82.
 * **BREAKING** From version `3.6.0` the exporter takes fallback configuration values from the environment variables. Thanks to [j_r0dd](https://github.com/jr0dd) for the idea. This changes how the exporter evaluates the command line parameters: make sure to consult the documentation on how to convert your command line to the new format. Basically every switch (for example verbose `-v`) not expect values, either `true` or `false`. This is necessary because there is no way to discriminate between an empty environment variable and one that has not been set.
 * From release [3.5.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.5.1) the exporter supports multiple peer files. Thanks to [Tobias Krischer](https://github.com/tobikris) for the idea.
