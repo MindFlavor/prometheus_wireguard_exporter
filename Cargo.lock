@@ -616,7 +616,7 @@ dependencies = [
 
 [[package]]
 name = "prometheus_wireguard_exporter"
-version = "3.6.2"
+version = "3.6.3"
 dependencies = [
  "anyhow",
  "clap 3.1.6",

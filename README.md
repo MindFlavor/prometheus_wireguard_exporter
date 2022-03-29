@@ -4,11 +4,11 @@
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
-[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.2)
-[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.2)
+[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.3)
+[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.3)
 
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.2)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.2)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.3)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.2)
 
 [![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/actions/workflows/docker.yml/badge.svg)](https://github.com/qdm12/godevcontainer/actions/workflows/docker.yml)
 
@@ -22,6 +22,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
+* From release [3.6.2](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.2) the exporter automatically parses the systemd-networkd's peer syntax too (`[WireGuardPeer]` rather than `[Peer]`). Thanks to [mbonino](https://github.com/mbonino) for the PR (see https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/92).
 * From release [3.6.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.1) the exporter correctly escapes the double quotes in `friendly_name`. Thanks to [Steven Wood](https://github.com/stvnw) for finding the bug in #82.
 * **BREAKING** From version `3.6.0` the exporter takes fallback configuration values from the environment variables. Thanks to [j_r0dd](https://github.com/jr0dd) for the idea. This changes how the exporter evaluates the command line parameters: make sure to consult the documentation on how to convert your command line to the new format. Basically every switch (for example verbose `-v`) not expect values, either `true` or `false`. This is necessary because there is no way to discriminate between an empty environment variable and one that has not been set.
 * From release [3.5.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.5.1) the exporter supports multiple peer files. Thanks to [Tobias Krischer](https://github.com/tobikris) for the idea.
@@ -104,7 +105,15 @@ docker build -t mindflavor/prometheus_wireguard_exporter https://github.com/Mind
 
 ### Flags available
 
-Start the binary with `-h` to get the complete syntax. The parameters are:
+Start the binary with `-h` to get the complete syntax. The parameters are below. 
+
+** Important ** : since 3.6.0, every parameter requires a value. In other words, even the `-v` (verbose) parameter requires `true` or `false` after it. Passing a parameter without value (for example `-v`) is the same of not passing the parameter at all: the default value will be used instead (in the case of the verbose option, it means `false`).
+
+For example, if you want to enable the verbose mode and enable the *prepend sudo* option you would use the following command line:
+
+```bash
+prometheus_wireguard_exporter -a true -v true <...>
+```
 
 | Parameter | Env | Mandatory | Valid values | Default | Accepts multiple occurrences? | Description |
 | -- | -- | -- | -- | -- | -- | -- |
