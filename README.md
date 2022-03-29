@@ -107,7 +107,7 @@ docker build -t mindflavor/prometheus_wireguard_exporter https://github.com/Mind
 
 Start the binary with `-h` to get the complete syntax. The parameters are below. 
 
-** Important ** : since 3.6.0, every parameter requires a value. In other words, even the `-v` (verbose) parameter requires `true` or `false` after it. Passing a parameter without value (for example `-v`) is the same of not passing the parameter at all: the default value will be used instead (in the case of the verbose option, it means `false`).
+❗**Important** ❗: since 3.6.0, every parameter requires a value. In other words, even the `-v` (verbose) parameter requires `true` or `false` after it. Passing a parameter without value (for example `-v`) is the same of not passing the parameter at all: the default value will be used instead (in the case of the verbose option, it means `false`).
 
 For example, if you want to enable the verbose mode and enable the *prepend sudo* option you would use the following command line:
 
