@@ -3,8 +3,8 @@ name: CI
 on:
   push:
     branches: [ master ]
+    tags: [ '*' ]
   pull_request:
-  tag:
 
 jobs:
   build:
