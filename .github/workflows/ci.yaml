@@ -35,13 +35,11 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
+      - run: cargo install cross
+
       - name: Build
-        uses: actions-rs/cargo@v1
         continue-on-error: ${{ matrix.channel != 'stable' }}
-        with:
-          use-cross: true
-          command: build
-          args: --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
           
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.channel == 'stable' }}
