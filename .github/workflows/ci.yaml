@@ -47,3 +47,10 @@ jobs:
           name: prometheus_wireguard_exporter_${{ matrix.target }}
           path: |
             target/${{ matrix.target }}/release/prometheus_wireguard_exporter
+
+      - uses: alexellis/upload-assets@0.3.0
+        if: ${{ startsWith(github.head_ref, "refs/tags/")
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["target/${{ matrix.target }}/release/prometheus_wireguard_exporter"]'
