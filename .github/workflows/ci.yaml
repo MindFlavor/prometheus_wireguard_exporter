@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  tag:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        channel: [stable]
+        target:
+          # https://doc.rust-lang.org/nightly/rustc/platform-support.html
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf # rpi
+          
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - armv7-unknown-linux-musleabihf # rpi
+          
+          - x86_64-unknown-freebsd
+          - aarch64-unknown-freebsd
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.channel }}
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        continue-on-error: ${{ matrix.channel != 'stable' }}
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }}
+          
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.channel == 'stable' }}
+        with:
+          name: prometheus_wireguard_exporter_${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/prometheus_wireguard_exporter
