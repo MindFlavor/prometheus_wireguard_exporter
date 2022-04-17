@@ -18,11 +18,11 @@ jobs:
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
           - armv7-unknown-linux-gnueabihf # rpi
-          
+
           - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-musl
           - armv7-unknown-linux-musleabihf # rpi
-          
+
           - x86_64-unknown-freebsd
           # - aarch64-unknown-freebsd <- std not precompiled
 
@@ -35,12 +35,12 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - run: cargo install cross
+      - run: cargo install --git https://github.com/cross-rs/cross.git # cross in crates.io is too old
 
       - name: Build
         continue-on-error: ${{ matrix.channel != 'stable' }}
         run: cross build --release --target ${{ matrix.target }}
-          
+
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.channel == 'stable' }}
         with:
