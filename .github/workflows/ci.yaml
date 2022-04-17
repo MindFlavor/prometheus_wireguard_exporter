@@ -39,7 +39,7 @@ jobs:
 
       - name: Build
         continue-on-error: ${{ matrix.channel != 'stable' }}
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }}
           
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.channel == 'stable' }}
