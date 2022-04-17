@@ -41,16 +41,18 @@ jobs:
         continue-on-error: ${{ matrix.channel != 'stable' }}
         run: cross build --release --target ${{ matrix.target }}
 
+      - name: Rename binary
+        run: mv target/${{ matrix.target }}/release/prometheus_wireguard_exporter prometheus_wireguard_exporter_${{ matrix.target }}
+
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.channel == 'stable' }}
         with:
           name: prometheus_wireguard_exporter_${{ matrix.target }}
-          path: |
-            target/${{ matrix.target }}/release/prometheus_wireguard_exporter
+          path: prometheus_wireguard_exporter_${{ matrix.target }}
 
       - uses: alexellis/upload-assets@0.3.0
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          asset_paths: '["target/${{ matrix.target }}/release/prometheus_wireguard_exporter"]'
+          asset_paths: '["prometheus_wireguard_exporter_${{ matrix.target }}"]'
