@@ -24,7 +24,7 @@ jobs:
           - armv7-unknown-linux-musleabihf # rpi
           
           - x86_64-unknown-freebsd
-          - aarch64-unknown-freebsd
+          # - aarch64-unknown-freebsd <- std not precompiled
 
     steps:
       - uses: actions/checkout@v2
