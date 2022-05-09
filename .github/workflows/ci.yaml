@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ '*' ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        channel: [stable]
+        target:
+          # https://doc.rust-lang.org/nightly/rustc/platform-support.html
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf # rpi
+
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - armv7-unknown-linux-musleabihf # rpi
+
+          - x86_64-unknown-freebsd
+          # - aarch64-unknown-freebsd <- std not precompiled
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.channel }}
+          target: ${{ matrix.target }}
+          override: true
+
+      - run: cargo install --git https://github.com/cross-rs/cross.git # cross in crates.io is too old
+
+      - name: Build
+        continue-on-error: ${{ matrix.channel != 'stable' }}
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        run: mv target/${{ matrix.target }}/release/prometheus_wireguard_exporter prometheus_wireguard_exporter_${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.channel == 'stable' }}
+        with:
+          name: prometheus_wireguard_exporter_${{ matrix.target }}
+          path: prometheus_wireguard_exporter_${{ matrix.target }}
+
+      - uses: alexellis/upload-assets@0.3.0
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["prometheus_wireguard_exporter_${{ matrix.target }}"]'
