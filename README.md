@@ -58,7 +58,7 @@ Coming soon, subcribe to [#59](https://github.com/MindFlavor/prometheus_wireguar
 You can then update the image with
 
 ```sh
-docker pull mindflavor/prometheus_wireguard_exporter
+docker pull mindflavor/prometheus-wireguard-exporter
 ```
 
 Or use a [tagged image](https://hub.docker.com/r/mindflavor/prometheus-wireguard-exporter/tags) such as `:3.5.1`.
