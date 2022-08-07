@@ -262,7 +262,7 @@ wireguard_latest_handshake_seconds{interface="wg0",public_key="wTjv6hS6fKfNK+SzO
 
 ### Systemd service file
 
-Now add the exporter to the Prometheus exporters as usual. I recommend to start it as a service. It's necessary to run it as root (if there is a non-root way to call `wg show all dump` please let me know). My systemd service file is like this one:
+Now add the exporter to the Prometheus exporters as usual. I recommend to start it as a service. It's necessary to run it as root or configure a sudo rule (if there is a non-root way to call `wg show all dump` please let me know). My systemd service file is like this one:
 
 ```ini
 [Unit]
@@ -278,6 +278,46 @@ ExecStart=/usr/local/bin/prometheus_wireguard_exporter -n /etc/wireguard/peers.c
 
 [Install]
 WantedBy=multi-user.target
+```
+
+Running it as normal user + hardening:
+
+```ini
+[Unit]
+Description=Prometheus WireGuard Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=wireguard_exporter
+Group=wireguard_exporter
+Type=simple
+Restart=on-failure
+EnvironmentFile=-/etc/conf.d/prometheus-wireguard-exporter
+ExecStart=/usr/local/bin/prometheus-wireguard-exporter $WIREGUARD_EXPORTER_ARGS
+PrivateTmp=yes
+ProtectHome=yes
+ProtectControlGroups=yes
+UMask=077
+RemoveIPC=yes
+BindReadOnlyPaths=/dev/log /run/systemd/journal/socket /run/systemd/journal/stdout
+ProtectSystem=strict
+ProtectProc=noaccess
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Most of the other systemd hardening options won't work because they block sudo. With the above unit, you can use the following sudo rule:
+
+```
+wireguard_exporter ALL=(root) NOPASSWD: /usr/bin/wg
+```
+
+If you're interested in more hardening, you can analyze the unit with:
+
+```
+systemd-analyze security prometheus-wireguard-exporter.service
 ```
 
 ## Development
