@@ -126,6 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('l')
                 .long("address")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_ADDRESS")
+                .value_parser(value_parser!(IpAddr))
                 .help("exporter address")
                 .default_value("0.0.0.0")
         )

@@ -19,10 +19,10 @@ impl Options {
             separate_allowed_ips: *matches.get_one("separate_allowed_ips").unwrap_or(&false),
             extract_names_config_files: matches
                 .get_many("extract_names_config_files")
-                .map(|e: ValuesRef<'_, &str>| e.into_iter().map(|a| a.to_string()).collect()),
+                .map(|e: ValuesRef<'_, String>| e.into_iter().map(|a| a.to_owned()).collect()),
             interfaces: matches
                 .get_many("interfaces")
-                .map(|e: ValuesRef<'_, &str>| e.into_iter().map(|a| a.to_string()).collect()),
+                .map(|e: ValuesRef<'_, String>| e.into_iter().map(|a| a.to_string()).collect()),
             export_remote_ip_and_port: *matches
                 .get_one("export_remote_ip_and_port")
                 .unwrap_or(&false),
