@@ -1,6 +1,5 @@
 use anyhow::Context;
-//extern crate serde_json;
-use clap::{crate_authors, crate_name, crate_version, Arg};
+use clap::{crate_authors, crate_name, crate_version, value_parser, Arg};
 use hyper::{Body, Request};
 use log::{debug, info, trace};
 use std::env;
@@ -105,11 +104,7 @@ async fn perform_request(
     }
 
     if let Some(wg_accumulator) = wg_accumulator {
-        Ok(wg_accumulator.render_with_names(
-            peer_entry_hashmap.as_ref(),
-            options.separate_allowed_ips,
-            options.export_remote_ip_and_port,
-        ))
+        Ok(wg_accumulator.render_with_names(peer_entry_hashmap.as_ref(), &options))
     } else {
         panic!();
     }
@@ -125,74 +120,81 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('l')
                 .long("address")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_ADDRESS")
+                .value_parser(value_parser!(IpAddr))
                 .help("exporter address")
                 .default_value("0.0.0.0")
-                .takes_value(true),
         )
         .arg(
             Arg::new("port")
                 .short('p')
                 .long("port")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_PORT")
+                .value_parser(value_parser!(u16))
                 .help("exporter port")
                 .default_value("9586")
-                .takes_value(true),
         )
         .arg(
             Arg::new("verbose")
                 .short('v')
                 .long("verbose")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_VERBOSE_ENABLED")
+                .value_parser(value_parser!(bool))
                 .help("verbose logging")
                 .default_value("false")
-                .takes_value(true),
         )
         .arg(
             Arg::new("prepend_sudo")
                 .short('a')
                 .long("prepend_sudo")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_PREPEND_SUDO_ENABLED")
+                .value_parser(value_parser!(bool))
                 .help("Prepend sudo to the wg show commands")
                 .default_value("false")
-                .takes_value(true),
         )
         .arg(
             Arg::new("separate_allowed_ips")
                 .short('s')
                 .long("separate_allowed_ips")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_SEPARATE_ALLOWED_IPS_ENABLED")
+                .value_parser(value_parser!(bool))
                 .help("separate allowed ips and ports")
                 .default_value("false")
-                .takes_value(true),
         )
         .arg(
             Arg::new("export_remote_ip_and_port")
                 .short('r')
                 .long("export_remote_ip_and_port")
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_EXPORT_REMOTE_IP_AND_PORT_ENABLED")
+                .value_parser(value_parser!(bool))
                 .help("exports peer's remote ip and port as labels (if available)")
                 .default_value("false")
-                .takes_value(true),
         )
         .arg(
             Arg::new("extract_names_config_files")
                 .short('n')
                 .long("extract_names_config_files")
+                .num_args(0..)
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_CONFIG_FILE_NAMES")
                 .help("If set, the exporter will look in the specified WireGuard config file for peer names (must be in [Peer] definition and be a comment). Multiple files are supported.")
-                .multiple_values(true)
-                .use_value_delimiter(true)
-                .takes_value(true))
+                .use_value_delimiter(false))
         .arg(
             Arg::new("interfaces")
                 .short('i')
                 .long("interfaces")
+                .num_args(0..)
                 .env("PROMETHEUS_WIREGUARD_EXPORTER_INTERFACES")
                 .help("If set specifies the interface passed to the wg show command. It is relative to the same position config_file. In not specified, all will be passed.")
-                .multiple_values(true)
-                .use_value_delimiter(true)
-                .takes_value(true))
-        .get_matches();
+                .use_value_delimiter(false))
+        .arg(
+            Arg::new("export_latest_handshake_delay")
+                .short('d')
+                .long("export_latest_handshake_delay")
+                .env("EXPORT_LATEST_HANDSHAKE_DELAY")
+                .value_parser(value_parser!(bool))
+                .help("exports runtime calculated latest handshake delay")
+                .default_value("false")
+        )
+         .get_matches();
 
     let options = Options::from_claps(&matches);
 
@@ -216,9 +218,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
     info!("using options: {:?}", options);
 
-    let bind = matches.value_of("port").unwrap();
-    let bind = bind.parse::<u16>().expect("port must be a valid number");
-    let ip = matches.value_of("addr").unwrap().parse::<IpAddr>().unwrap();
+    let bind: u16 = *matches.get_one("port").unwrap();
+    let ip: IpAddr = *matches.get_one("addr").unwrap();
     let addr = (ip, bind).into();
 
     info!("starting exporter on http://{}/metrics", addr);

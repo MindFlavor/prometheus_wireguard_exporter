@@ -1,3 +1,5 @@
+use clap::parser::ValuesRef;
+
 #[derive(Debug, Clone)]
 pub(crate) struct Options {
     pub verbose: bool,
@@ -6,49 +8,27 @@ pub(crate) struct Options {
     pub extract_names_config_files: Option<Vec<String>>,
     pub interfaces: Option<Vec<String>>,
     pub export_remote_ip_and_port: bool,
+    pub export_latest_handshake_delay: bool,
 }
 
 impl Options {
     pub fn from_claps(matches: &clap::ArgMatches) -> Options {
         let options = Options {
-            verbose: matches
-                .value_of("verbose")
-                .map(|e| {
-                    e.to_lowercase()
-                        .parse()
-                        .expect("cannot parse verbose as a bool")
-                })
-                .unwrap_or_default(),
-            prepend_sudo: matches
-                .value_of("prepend_sudo")
-                .map(|e| {
-                    e.to_lowercase()
-                        .parse()
-                        .expect("cannot parse prepend_sudo as a bool")
-                })
-                .unwrap_or_default(),
-            separate_allowed_ips: matches
-                .value_of("separate_allowed_ips")
-                .map(|e| {
-                    e.to_lowercase()
-                        .parse()
-                        .expect("cannot parse separate_allowed_ips as a bool")
-                })
-                .unwrap_or_default(),
+            verbose: *matches.get_one("verbose").unwrap_or(&false),
+            prepend_sudo: *matches.get_one("prepend_sudo").unwrap_or(&false),
+            separate_allowed_ips: *matches.get_one("separate_allowed_ips").unwrap_or(&false),
             extract_names_config_files: matches
-                .values_of("extract_names_config_files")
-                .map(|e| e.into_iter().map(|e| e.to_owned()).collect()),
+                .get_many("extract_names_config_files")
+                .map(|e: ValuesRef<'_, String>| e.into_iter().map(|a| a.to_owned()).collect()),
             interfaces: matches
-                .values_of("interfaces")
-                .map(|e| e.into_iter().map(|a| a.to_owned()).collect()),
-            export_remote_ip_and_port: matches
-                .value_of("export_remote_ip_and_port")
-                .map(|e| {
-                    e.to_lowercase()
-                        .parse()
-                        .expect("cannot parse export_remote_ip_and_port as a bool")
-                })
-                .unwrap_or_default(),
+                .get_many("interfaces")
+                .map(|e: ValuesRef<'_, String>| e.into_iter().map(|a| a.to_string()).collect()),
+            export_remote_ip_and_port: *matches
+                .get_one("export_remote_ip_and_port")
+                .unwrap_or(&false),
+            export_latest_handshake_delay: *matches
+                .get_one("export_latest_handshake_delay")
+                .unwrap_or(&false),
         };
 
         options

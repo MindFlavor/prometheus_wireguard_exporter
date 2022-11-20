@@ -4,11 +4,11 @@
 
 [![Crate](https://img.shields.io/crates/v/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratedown](https://img.shields.io/crates/d/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter) [![cratelastdown](https://img.shields.io/crates/dv/prometheus_wireguard_exporter.svg)](https://crates.io/crates/prometheus_wireguard_exporter)
 
-[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.3)
-[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.3)
+[![release](https://img.shields.io/github/release/MindFlavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.4)
+[![tag](https://img.shields.io/github/tag/mindflavor/prometheus_wireguard_exporter.svg)](https://github.com/MindFlavor/prometheus_wireguard_exporter/tree/3.6.4)
 
 [![Rust build](https://github.com/mindflavor/prometheus_wireguard_exporter/workflows/Rust/badge.svg)](https://github.com/mindflavor/prometheus_wireguard_exporter/actions?query=workflow%3ARust)
-[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.3)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.3)
+[![commitssince](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.4)](https://img.shields.io/github/commits-since/mindflavor/prometheus_wireguard_exporter/3.6.4)
 
 [![Docker build](https://github.com/MindFlavor/prometheus_wireguard_exporter/actions/workflows/docker.yml/badge.svg)](https://github.com/qdm12/godevcontainer/actions/workflows/docker.yml)
 
@@ -22,6 +22,7 @@ A Prometheus exporter for [WireGuard](https://www.wireguard.com), written in Rus
 
 ## Changelog
 
+* From release [3.6.4](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.4) the exporter optionally calculates the delta, in seconds, since the last handshake. The metric is `wireguard_latest_handshake_delay_seconds`. Thanks to [mmahacek](https://github.com/mmahacek) for the [idea](https://github.com/MindFlavor/prometheus_wireguard_exporter/issues/100).
 * From release [3.6.3](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.3) the exporter automatically parses the systemd-networkd's peer syntax too (`[WireGuardPeer]` rather than `[Peer]`). Thanks to [mbonino](https://github.com/mbonino) for the PR (see https://github.com/MindFlavor/prometheus_wireguard_exporter/pull/92).
 * From release [3.6.1](https://github.com/MindFlavor/prometheus_wireguard_exporter/releases/tag/3.6.1) the exporter correctly escapes the double quotes in `friendly_name`. Thanks to [Steven Wood](https://github.com/stvnw) for finding the bug in #82.
 * **BREAKING** From version `3.6.0` the exporter takes fallback configuration values from the environment variables. Thanks to [j_r0dd](https://github.com/jr0dd) for the idea. This changes how the exporter evaluates the command line parameters: make sure to consult the documentation on how to convert your command line to the new format. Basically every switch (for example verbose `-v`) not expect values, either `true` or `false`. This is necessary because there is no way to discriminate between an empty environment variable and one that has not been set.
@@ -125,6 +126,7 @@ prometheus_wireguard_exporter -a true -v true <...>
 | `-s` | `PROMETHEUS_WIREGUARD_EXPORTER_SEPARATE_ALLOWED_IPS_ENABLED` | No | `true` or `false` | `false` | No | Enable the allowed ip + subnet split mode for the labels.
 | `-r` | `PROMETHEUS_WIREGUARD_EXPORTER_EXPORT_REMOTE_IP_AND_PORT_ENABLED` | No | `true` or `false` | `false` | No | Exports peer's remote ip and port as labels (if available).
 | `-i` | `PROMETHEUS_WIREGUARD_EXPORTER_INTERFACES` | No | Your interface name(s) | `all` | Yes | Specifies the interface(s) passed to the `wg show <interface> dump` parameter. Multiple parameters are allowed.
+| `-d` | `EXPORT_LATEST_HANDSHAKE_DELAY` | No | `true` or `false` | `false` | No | Adds the `wireguard_latest_handshake_delay_seconds` metric that automatically calculates the seconds passed since the last handshake. 
 
 Keep in mind that command line values take precedence over environment variables.
 
