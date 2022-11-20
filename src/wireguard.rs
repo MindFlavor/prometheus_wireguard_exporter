@@ -189,11 +189,17 @@ impl WireGuard {
             .with_metric_type(MetricType::Gauge)
             .with_help("UNIX timestamp seconds of the last handshake")
             .build();
-        let mut pc_latest_handshake_delay = PrometheusMetric::build()
-            .with_name("wireguard_latest_handshake_delay_seconds")
-            .with_metric_type(MetricType::Gauge)
-            .with_help("Seconds from the last handshake")
-            .build();
+        let mut pc_latest_handshake_delay = if options.export_latest_handshake_delay {
+            Some(
+                PrometheusMetric::build()
+                    .with_name("wireguard_latest_handshake_delay_seconds")
+                    .with_metric_type(MetricType::Gauge)
+                    .with_help("Seconds from the last handshake")
+                    .build(),
+            )
+        } else {
+            None
+        };
 
         // Here we make sure we process the interfaces in the
         // lexicographical order.
@@ -312,6 +318,14 @@ impl WireGuard {
                         instance = instance.with_label(h, v);
                     }
 
+                    pc_latest_handshake_delay
+                        .as_mut()
+                        .map(|pc_latest_handshake_delay| {
+                            pc_latest_handshake_delay.render_and_append_instance(
+                                &instance.clone().with_value(ep.latest_handshake.into()),
+                            )
+                        });
+
                     pc_sent_bytes_total
                         .render_and_append_instance(&instance.clone().with_value(ep.sent_bytes))
                         .render();
@@ -328,10 +342,15 @@ impl WireGuard {
         }
 
         format!(
-            "{}\n{}\n{}",
+            "{}\n{}\n{}{}",
             pc_sent_bytes_total.render(),
             pc_received_bytes_total.render(),
-            pc_latest_handshake.render()
+            pc_latest_handshake.render(),
+            pc_latest_handshake_delay.map_or_else(
+                // this row adds pc_latest_handshake_delay only if configured
+                || "".to_owned(),
+                |pc_latest_handshake_delay| format!("\n{}", pc_latest_handshake_delay.render())
+            )
         )
     }
 }
