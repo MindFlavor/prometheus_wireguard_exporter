@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const EMPTY: &str = "(none)";
 
@@ -321,8 +322,12 @@ impl WireGuard {
                     pc_latest_handshake_delay
                         .as_mut()
                         .map(|pc_latest_handshake_delay| {
+                            let earlier = UNIX_EPOCH + Duration::from_secs(ep.latest_handshake);
+                            let delta = SystemTime::now()
+                                .duration_since(earlier)
+                                .expect("time went backwards");
                             pc_latest_handshake_delay.render_and_append_instance(
-                                &instance.clone().with_value(ep.latest_handshake.into()),
+                                &instance.clone().with_value(delta.as_secs() as u128),
                             )
                         });
 
