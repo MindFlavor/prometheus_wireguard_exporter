@@ -104,11 +104,7 @@ async fn perform_request(
     }
 
     if let Some(wg_accumulator) = wg_accumulator {
-        Ok(wg_accumulator.render_with_names(
-            peer_entry_hashmap.as_ref(),
-            options.separate_allowed_ips,
-            options.export_remote_ip_and_port,
-        ))
+        Ok(wg_accumulator.render_with_names(peer_entry_hashmap.as_ref(), &options))
     } else {
         panic!();
     }
