@@ -36,6 +36,7 @@ impl From<&str> for SecureString {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone)]
 pub(crate) struct LocalEndpoint {
     pub public_key: String,
@@ -53,6 +54,7 @@ pub(crate) struct RemoteEndpoint {
     pub latest_handshake: u64,
     pub sent_bytes: u128,
     pub received_bytes: u128,
+    #[allow(dead_code)]
     pub persistent_keepalive: bool,
 }
 

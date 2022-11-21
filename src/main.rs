@@ -2,6 +2,7 @@ use anyhow::Context;
 use clap::{crate_authors, crate_name, crate_version, value_parser, Arg};
 use hyper::{Body, Request};
 use log::{debug, info, trace};
+use prometheus_exporter_base::prelude::{Authorization, ServerOptions};
 use std::env;
 mod options;
 use options::Options;
@@ -220,11 +221,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let bind: u16 = *matches.get_one("port").unwrap();
     let ip: IpAddr = *matches.get_one("addr").unwrap();
-    let addr = (ip, bind).into();
+    let addr: std::net::SocketAddr = (ip, bind).into();
 
     info!("starting exporter on http://{}/metrics", addr);
 
-    render_prometheus(addr, options, |request, options| {
+    let server_options = ServerOptions {
+        addr,
+        authorization: Authorization::None,
+    };
+
+    render_prometheus(server_options, options, |request, options| {
         Box::pin(perform_request(request, options))
     })
     .await;

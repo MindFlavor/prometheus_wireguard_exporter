@@ -8,6 +8,7 @@ use std::convert::TryInto;
 #[derive(Debug, Default, Clone)]
 pub(crate) struct PeerEntry<'a> {
     pub public_key: &'a str,
+    #[allow(dead_code)]
     pub allowed_ips: &'a str,
     pub friendly_description: Option<FriendlyDescription<'a>>,
 }
