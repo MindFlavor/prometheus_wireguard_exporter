@@ -438,7 +438,7 @@ wg0\tsUsR6xufQQ8Tf0FuyY9tfEeYdhVMeFelr4ZMUrj+B0E=\t(none)\t10.211.123.128:51820\
             extract_names_config_files: None,
             interfaces: None,
             export_remote_ip_and_port: true,
-            export_latest_handshake_delay: true,
+            export_latest_handshake_delay: false,
         };
 
         let s = a.render_with_names(Some(&pe), &options);
@@ -564,8 +564,7 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
             interfaces: HashMap::new(),
         };
 
-        let mut v = Vec::new();
-        v.push(re);
+        let v = vec![re];
         wg.interfaces.insert("Pippo".to_owned(), v);
 
         let options = Options {
@@ -575,7 +574,7 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
             extract_names_config_files: None,
             interfaces: None,
             export_remote_ip_and_port: true,
-            export_latest_handshake_delay: true,
+            export_latest_handshake_delay: false,
         };
 
         let prometheus = wg.render_with_names(None, &options);
@@ -620,9 +619,7 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
             interfaces: HashMap::new(),
         };
 
-        let mut v = Vec::new();
-        v.push(re1);
-        v.push(re2);
+        let v = vec![re1, re2];
         wg.interfaces.insert("Pippo".to_owned(), v);
 
         let mut pehm = PeerEntryHashMap::new();
@@ -642,7 +639,7 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
             extract_names_config_files: None,
             interfaces: None,
             export_remote_ip_and_port: true,
-            export_latest_handshake_delay: true,
+            export_latest_handshake_delay: false,
         };
 
         let prometheus = wg.render_with_names(Some(&pehm), &options);
