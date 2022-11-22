@@ -1,0 +1,4 @@
+# This is used in the Docker build, you might need to adjust it for local usage.
+
+[target.x86_64-unknown-freebsd]
+image = "svenstaro/cross-x86_64-unknown-freebsd:latest"
