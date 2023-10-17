@@ -1,10 +1,17 @@
-name: CI
-
+name: build-and-publish-binaries
 on:
   push:
-    branches: [ master ]
-    tags: [ '*' ]
+    paths:
+      - .github/workflows/binaries.yml
+      - src/**
+      - Cargo.lock
+      - Cargo.toml
   pull_request:
+    paths:
+      - .github/workflows/binaries.yml
+      - src/**
+      - Cargo.lock
+      - Cargo.toml
 
 jobs:
   build:
