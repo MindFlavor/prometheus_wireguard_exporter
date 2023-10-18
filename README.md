@@ -326,7 +326,7 @@ systemd-analyze security prometheus-wireguard-exporter.service
 
 This example is for an installation on OPNsense.
 
-Add service user: `pw adduser wireguard_exporter -g wheel -d /nonexistent -s /usr/sbin/nologin -c "Prometheus wireguard_exporter user"`  
+Add service user: `pw adduser wireguard_exporter -u 518 -g wheel -d /nonexistent -s /usr/sbin/nologin -c "Prometheus wireguard_exporter user"`  
 Group `wheel` is nessesary to read the `wg*.conf` files.
 
 Service: `/usr/local/etc/rc.d/wireguard_exporter`
