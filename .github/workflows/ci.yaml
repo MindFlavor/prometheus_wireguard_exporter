@@ -27,7 +27,7 @@ jobs:
           # - aarch64-unknown-freebsd <- std not precompiled
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -35,7 +35,19 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - run: cargo install --git https://github.com/cross-rs/cross.git # cross in crates.io is too old
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
+
+      - run: cargo install --force --git https://github.com/cross-rs/cross.git cross  # cross in crates.io is too old
 
       - name: Build
         continue-on-error: ${{ matrix.channel != 'stable' }}
@@ -50,7 +62,7 @@ jobs:
           name: prometheus_wireguard_exporter_${{ matrix.target }}
           path: prometheus_wireguard_exporter_${{ matrix.target }}
 
-      - uses: alexellis/upload-assets@0.3.0
+      - uses: alexellis/upload-assets@0.4.0
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ github.token }}
