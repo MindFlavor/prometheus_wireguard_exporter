@@ -1,7 +1,7 @@
 ARG BUILDPLATFORM=linux/amd64
 
 ARG ALPINE_VERSION=3.14
-ARG RUST_VERSION=latest
+ARG RUST_VERSION=1.69-bullseye
 
 FROM --platform=${BUILDPLATFORM} rust:${RUST_VERSION} AS base
 WORKDIR /usr/src/prometheus_wireguard_exporter
