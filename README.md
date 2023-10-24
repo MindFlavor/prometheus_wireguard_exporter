@@ -322,6 +322,102 @@ If you're interested in more hardening, you can analyze the unit with:
 systemd-analyze security prometheus-wireguard-exporter.service
 ```
 
+### RC service file
+
+This example is for an installation on OPNsense.
+
+Add service user: `pw adduser wireguard_exporter -u 518 -g wheel -d /nonexistent -s /usr/sbin/nologin -c "Prometheus wireguard_exporter user"`  
+Group `wheel` is nessesary to read the `wg*.conf` files.
+
+Service: `/usr/local/etc/rc.d/wireguard_exporter`
+```
+#!/bin/sh
+
+# PROVIDE: wireguard_exporter
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# wireguard_exporter_enable (bool):          Set to NO by default.
+#               Set it to YES to enable wireguard_exporter.
+# wireguard_exporter_user (string):          Set user that wireguard_exporter will run under
+#               Default is "wireguard_exporter".
+# wireguard_exporter_group (string):         Set group that wireguard_exporter will run under
+#               Default is "wheel".
+# wireguard_exporter_args (string):          Set extra arguments to pass to wireguard_exporter
+#               Default is "".
+# wireguard_exporter_listen_address (string):Set ip that wireguard_exporter will listen on
+#               Default is "0.0.0.0".
+# wireguard_exporter_listen_port (integer):  Set port that wireguard_exporter will listen on
+#               Default is "9586".
+# node_exporter_configs (string):  Set directory that wireguard_exporter will watch
+#               Default is "/usr/local/etc/wireguard/*.conf".
+
+. /etc/rc.subr
+
+name=wireguard_exporter
+rcvar=wireguard_exporter_enable
+
+load_rc_config $name
+
+: ${wireguard_exporter_enable:="NO"}
+: ${wireguard_exporter_user:="wireguard_exporter"}
+: ${wireguard_exporter_group:="wheel"}
+: ${wireguard_exporter_args:=""}
+: ${wireguard_exporter_listen_address:="0.0.0.0"}
+: ${wireguard_exporter_listen_port:="9586"}
+: ${node_exporter_configs:="/usr/local/etc/wireguard/*.conf"}
+
+pidfile=/var/run/wireguard_exporter.pid
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/wireguard_exporter"
+command_args="-f -p ${pidfile} -T ${name} \
+    /usr/bin/env ${procname} \
+    -l ${wireguard_exporter_listen_address} \
+	-p ${wireguard_exporter_listen_port} \
+    -n ${node_exporter_configs} \
+    ${wireguard_exporter_args}"
+
+start_precmd=wireguard_exporter_startprecmd
+
+wireguard_exporter_startprecmd()
+{
+    if [ ! -e ${pidfile} ]; then
+        install \
+            -o ${wireguard_exporter_user} \
+            -g ${wireguard_exporter_group} \
+            /dev/null ${pidfile};
+    fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
+```
+
+Service configuration `/etc/rc.conf.d/wireguard_exporter`
+```
+wireguard_exporter_args="-a true -r true -d true "  # adjust to your liking
+wireguard_exporter_listen_address="172.16.0.1"      # listen address
+wireguard_exporter_enable="YES"                     # enable startup on boot
+```
+
+With the above unit, you can use the following sudo rule:
+
+```
+wireguard_exporter ALL=(root) NOPASSWD: /usr/bin/wg  # no sudo password required
+Cmnd_Alias WGEXPORT = /usr/bin/wg                    # configuration alias for further use
+Defaults!WGEXPORT !log_allowed                       # prevent logging of permitted executions
+```
+
+Testing
+
+```
+service wireguard_exporter stop
+sudo su -m wireguard_exporter -c '/usr/local/bin/wireguard_exporter -l 0.0.0.0 -p 9586 -n /usr/local/etc/wireguard/*.conf -a true -r true -d true'
+```
+
 ## Development
 
 ### Locally
