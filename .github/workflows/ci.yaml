@@ -1,4 +1,4 @@
-name: CI
+name: Build and Publish Binaries
 
 on:
   push:
