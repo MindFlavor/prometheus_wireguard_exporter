@@ -1,4 +1,4 @@
-name: Docker Test
+name: Build and Publish Docker Container
 on:
   push:
     paths:
